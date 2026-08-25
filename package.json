@@ -1,0 +1,41 @@
+{
+  "name": "tabimate",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "bun scripts/dev.ts",
+    "dev:web": "next dev -p 4680",
+    "dev:gw": "bun --watch src/gateway/index.ts",
+    "build": "next build",
+    "start": "bun scripts/start.ts",
+    "start:web": "next start -p 4680",
+    "start:gw": "bun src/gateway/index.ts",
+    "update": "bun scripts/update.ts",
+    "test": "bun test src/shared src/gateway"
+  },
+  "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.18",
+    "@radix-ui/react-popover": "^1.1.18",
+    "@vis.gl/react-google-maps": "^1.8.0",
+    "clsx": "^2.1.1",
+    "@phosphor-icons/react": "^2.1.7",
+    "gsap": "^3.15.0",
+    "next": "16.2.6",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "tailwind-merge": "^3.6.0",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/bun": "^1.2.0",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "playwright": "^1.61.1",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  },
+  "ignoreScripts": ["sharp", "unrs-resolver"],
+  "trustedDependencies": ["sharp", "unrs-resolver"]
+}

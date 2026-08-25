@@ -1,0 +1,284 @@
+@import "tailwindcss";
+
+/* ============================================================
+   tabimate 設計 token — 「晴空假期」
+   單一亮色主題(刻意決策:協作工具要所有人看到同一份顏色語意)。
+   原始 token 放 :root(--tm-*),再由 @theme inline 映射成 Tailwind 工具類。
+   ============================================================ */
+
+:root {
+  /* 表面 */
+  --tm-bg: #faf9f6;
+  --tm-surface: #ffffff;
+  --tm-sunken: #f3f1ec;
+  --tm-border: #e8e4db;
+  --tm-border-strong: #d8d2c6;
+
+  /* 文字 */
+  --tm-ink: #23201c;
+  --tm-ink-soft: #6e675d;
+  --tm-ink-faint: #a29a8e;
+
+  /* 品牌 */
+  --tm-coral: #ff5d47;
+  --tm-coral-deep: #e8442e;
+  --tm-coral-wash: #ffede9;
+  --tm-ocean: #0e9ba4;
+  --tm-ocean-deep: #0b7e86;
+  --tm-ocean-wash: #e9f6f6;
+  --tm-sun: #ffb629;
+  --tm-sun-deep: #c98a0a;
+  --tm-sun-wash: #fff4dc;
+  --tm-leaf: #2fa866;
+  --tm-leaf-deep: #1f8a50;
+  --tm-leaf-wash: #e7f5ec;
+  --tm-alert: #e23d3d;
+  --tm-alert-wash: #fdecec;
+
+  /* stop 分類 */
+  --tm-cat-lodging: #6e6bf0;
+  --tm-cat-food: #f97316;
+  --tm-cat-cafe: #a16b3f;
+  --tm-cat-sight: #14b8a6;
+  --tm-cat-shopping: #ec4899;
+  --tm-cat-activity: #8b5cf6;
+  --tm-cat-transit-hub: #3b82f6;
+  --tm-cat-other: #8a8578;
+
+  /* 圓角 */
+  --tm-r-sm: 8px;
+  --tm-r-md: 12px;
+  --tm-r-lg: 16px;
+  --tm-r-xl: 22px;
+
+  /* 陰影(暖色調,不用純黑) */
+  --tm-shadow-card: 0 1px 2px rgb(35 32 28 / 0.05), 0 8px 24px -12px rgb(35 32 28 / 0.12);
+  --tm-shadow-pop: 0 2px 6px rgb(35 32 28 / 0.08), 0 24px 48px -16px rgb(35 32 28 / 0.22);
+  --tm-shadow-lift: 0 4px 10px rgb(35 32 28 / 0.08), 0 16px 32px -12px rgb(35 32 28 / 0.2);
+
+  /* 版面 */
+  --tm-topbar-h: 56px;
+  --tm-timeline-w: 360px;
+  --tm-chat-w: 400px;
+}
+
+@theme inline {
+  --color-bg: var(--tm-bg);
+  --color-surface: var(--tm-surface);
+  --color-sunken: var(--tm-sunken);
+  --color-line: var(--tm-border);
+  --color-line-strong: var(--tm-border-strong);
+  --color-ink: var(--tm-ink);
+  --color-ink-soft: var(--tm-ink-soft);
+  --color-ink-faint: var(--tm-ink-faint);
+  --color-coral: var(--tm-coral);
+  --color-coral-deep: var(--tm-coral-deep);
+  --color-coral-wash: var(--tm-coral-wash);
+  --color-ocean: var(--tm-ocean);
+  --color-ocean-deep: var(--tm-ocean-deep);
+  --color-ocean-wash: var(--tm-ocean-wash);
+  --color-sun: var(--tm-sun);
+  --color-sun-deep: var(--tm-sun-deep);
+  --color-sun-wash: var(--tm-sun-wash);
+  --color-leaf: var(--tm-leaf);
+  --color-leaf-deep: var(--tm-leaf-deep);
+  --color-leaf-wash: var(--tm-leaf-wash);
+  --color-alert: var(--tm-alert);
+  --color-alert-wash: var(--tm-alert-wash);
+  --color-cat-lodging: var(--tm-cat-lodging);
+  --color-cat-food: var(--tm-cat-food);
+  --color-cat-cafe: var(--tm-cat-cafe);
+  --color-cat-sight: var(--tm-cat-sight);
+  --color-cat-shopping: var(--tm-cat-shopping);
+  --color-cat-activity: var(--tm-cat-activity);
+  --color-cat-transit-hub: var(--tm-cat-transit-hub);
+  --color-cat-other: var(--tm-cat-other);
+  --radius-sm: var(--tm-r-sm);
+  --radius-md: var(--tm-r-md);
+  --radius-lg: var(--tm-r-lg);
+  --radius-xl: var(--tm-r-xl);
+  --shadow-card: var(--tm-shadow-card);
+  --shadow-pop: var(--tm-shadow-pop);
+  --shadow-lift: var(--tm-shadow-lift);
+  --font-sans: var(--font-noto-sans-tc), "PingFang TC", "Microsoft JhengHei", sans-serif;
+  --font-display: var(--font-outfit), var(--font-noto-sans-tc), "PingFang TC", sans-serif;
+}
+
+/* ---- 動畫 keyframes ----
+   Turbopack 陷阱:keyframes 必須多行,且不可放在檔案結尾。 */
+
+@keyframes tm-pulse-dot {
+  0%,
+  80%,
+  100% {
+    transform: scale(0.7);
+    opacity: 0.45;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes tm-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes tm-pop-in {
+  0% {
+    transform: translateY(6px) scale(0.98);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes tm-flash {
+  0% {
+    background-color: var(--tm-coral-wash);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+@keyframes tm-caret-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes tm-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---- 基底 ---- */
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--tm-bg);
+  color: var(--tm-ink);
+  font-family: var(--font-sans);
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* 可點擊的東西一律 pointer(Tailwind v4 preflight 預設 button 是 default cursor) */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+[role="link"],
+[role="radio"]:not(:disabled),
+[role="switch"]:not(:disabled),
+label:has(> input[type="file"]) {
+  cursor: pointer;
+}
+/* 例外:拖曳把手維持 grab(未分層規則會蓋過 Tailwind utility,需明列) */
+button.cursor-grab {
+  cursor: grab;
+}
+button.cursor-grab:active {
+  cursor: grabbing;
+}
+
+/* 數字/時間一律等寬數字,display 字體 */
+.tm-num {
+  font-family: var(--font-display);
+  font-feature-settings: "tnum";
+  font-variant-numeric: tabular-nums;
+}
+
+::selection {
+  background: var(--tm-coral-wash);
+  color: var(--tm-coral-deep);
+}
+
+/* 細捲軸 */
+.tm-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--tm-border-strong) transparent;
+}
+
+/* 隱藏捲軸(仍可捲動;工具執行區塊用) */
+.tm-noscrollbar {
+  scrollbar-width: none;
+}
+.tm-noscrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* focus ring 統一 */
+.tm-focus {
+  outline: none;
+}
+.tm-focus:focus-visible {
+  outline: 2px solid var(--tm-ocean);
+  outline-offset: 2px;
+}
+
+/* 串流游標 */
+.tm-stream-caret::after {
+  content: "";
+  display: inline-block;
+  width: 3px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  border-radius: 2px;
+  background: var(--tm-ocean);
+  animation: tm-caret-blink 0.9s steps(1) infinite;
+}
+
+/* 骨架 shimmer */
+.tm-skeleton {
+  background: linear-gradient(
+    100deg,
+    var(--tm-sunken) 40%,
+    #eceae2 50%,
+    var(--tm-sunken) 60%
+  );
+  background-size: 200% 100%;
+  animation: tm-shimmer 1.6s linear infinite;
+}
+
+/* 卡片入場 */
+.tm-pop-in {
+  animation: tm-pop-in 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* 變更 flash(itin_changed scope 高亮) */
+.tm-change-flash {
+  animation: tm-flash 0.8s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tm-pop-in,
+  .tm-change-flash,
+  .tm-skeleton,
+  .tm-stream-caret::after {
+    animation: none;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+  }
+}

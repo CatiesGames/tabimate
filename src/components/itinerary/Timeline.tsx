@@ -1,0 +1,526 @@
+"use client";
+
+import { useRef, useState } from "react";
+import { Bed, CaretRight, DotsSixVertical, MoonStars, Plus, Warning } from "@phosphor-icons/react";
+
+import { CATEGORY_META, LEG_MODE_ICON } from "@/lib/categories";
+import { cn } from "@/lib/cn";
+import { carryOverLodging, detectTimeConflicts, isOvernightLodging } from "@/shared/conflicts";
+import type { CarryLeg, Day, Leg, Stop } from "@/shared/types";
+import {
+  usePresence,
+  useSelection,
+  useSession,
+  useTrip,
+} from "@/lib/workspace/WorkspaceProvider";
+import { AvatarStack, Hint, Tag } from "@/components/ui";
+import { BookingBadge, VerifyBadge } from "./badges";
+import { LegEditor } from "./LegEditor";
+import { TimeField } from "./TimeField";
+import { StopThumb } from "./StopThumb";
+import { AddStop } from "./AddStop";
+
+const CONFLICT_TIP =
+  "時間與前後行程順序衝突\n調整時間,或直接拖曳卡片重新排序\n(也可以請塔比整理)";
+
+export function Timeline() {
+  const { doc, changedStopIds, editOps } = useTrip();
+  const { activeDayId, selectedStopId, setSelectedStop } = useSelection();
+  const { viewersOfStop } = usePresence();
+  const { memberOf } = useSession();
+
+  const listRef = useRef<HTMLDivElement>(null);
+  const suppressClick = useRef(false);
+  const [dragging, setDragging] = useState<{
+    stopId: string;
+    fromIndex: number;
+    overIndex: number;
+    y: number;
+  } | null>(null);
+
+  if (!doc || !activeDayId) return null;
+  const stops = doc.stops
+    .filter((s) => s.dayId === activeDayId)
+    .sort((a, b) => a.position - b.position);
+  const legOf = (stopId: string): Leg | undefined =>
+    doc.legs.find((l) => l.fromStopId === stopId);
+  const conflicts = detectTimeConflicts(doc.days, doc.stops);
+
+  // ---- 拖曳重排:整張卡可拖(滑鼠移動 >6px 才啟動,不干擾點選);手把按下即拖(含觸控)。 ----
+  const beginDrag = (
+    startEvent: { clientY: number },
+    stop: Stop,
+    index: number,
+    immediate: boolean,
+  ) => {
+    const startY = startEvent.clientY;
+    let started = immediate;
+    if (immediate) {
+      setDragging({ stopId: stop.id, fromIndex: index, overIndex: index, y: 0 });
+      document.body.style.userSelect = "none";
+    }
+
+    const cardEls = () =>
+      [...(listRef.current?.querySelectorAll("[data-stop-card]") ?? [])] as HTMLElement[];
+
+    const onMove = (ev: PointerEvent) => {
+      const dy = ev.clientY - startY;
+      if (!started) {
+        if (Math.abs(dy) < 6) return;
+        started = true;
+        suppressClick.current = true;
+        setDragging({ stopId: stop.id, fromIndex: index, overIndex: index, y: 0 });
+        document.body.style.userSelect = "none";
+      }
+      const els = cardEls();
+      let over = index;
+      for (let i = 0; i < els.length; i++) {
+        const r = els[i].getBoundingClientRect();
+        if (ev.clientY > r.top + r.height / 2) over = i;
+      }
+      setDragging((d) => (d ? { ...d, y: dy, overIndex: over } : d));
+    };
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      document.body.style.userSelect = "";
+      setDragging((d) => {
+        if (d && started && d.overIndex !== d.fromIndex) {
+          editOps(
+            [{ op: "move_stop", stopId: d.stopId, toDayId: activeDayId, position: d.overIndex }],
+            `調整 ${stop.name} 順序`,
+          );
+        }
+        return null;
+      });
+      // 拖過之後吞掉隨後的 click,避免誤觸選取
+      setTimeout(() => {
+        suppressClick.current = false;
+      }, 50);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  };
+
+  const carryLodging = carryOverLodging(doc.days, doc.stops, activeDayId);
+  const activeDay = doc.days.find((d) => d.id === activeDayId) ?? null;
+
+  return (
+    <div ref={listRef} className="flex flex-col">
+      {/* 續住列:固定在頭尾 — 早上從這出發(頭);中間天晚上回來續住(尾);退房日只有頭 */}
+      {carryLodging && activeDay && (
+        <CarryLodgingRow
+          carry={carryLodging}
+          edge="top"
+          day={activeDay}
+          adjacentStop={stops[0] ?? null}
+        />
+      )}
+      {stops.length === 0 && (
+        <p className="rounded-lg border border-dashed border-line-strong px-4 py-6 text-center text-[13px] text-ink-faint">
+          這天還沒有安排,從下方搜尋加入地點,或直接請右側的塔比規劃。
+        </p>
+      )}
+      {stops.map((stop, i) => {
+        const meta = CATEGORY_META[stop.category];
+        const Icon = meta.icon;
+        const selected = stop.id === selectedStopId;
+        const conflicted = conflicts.has(stop.id);
+        const viewers = viewersOfStop(stop.id);
+        const isDragging = dragging?.stopId === stop.id;
+        const showIndicatorAbove =
+          dragging && !isDragging && dragging.overIndex === i && dragging.fromIndex > i;
+        const showIndicatorBelow =
+          dragging && !isDragging && dragging.overIndex === i && dragging.fromIndex < i;
+        const leg = legOf(stop.id);
+        const nextStop = stops[i + 1];
+
+        return (
+          <div key={stop.id}>
+            {showIndicatorAbove && <DropLine />}
+            <div
+              data-stop-card
+              onPointerDown={(e) => {
+                // 滑鼠在卡片空白處按住拖曳;按鈕/圖片/觸控交給手把
+                if (e.pointerType !== "mouse" || e.button !== 0) return;
+                if ((e.target as HTMLElement).closest("button, a, input, textarea, img")) return;
+                beginDrag(e, stop, i, false);
+              }}
+              onClick={() => {
+                if (suppressClick.current) return;
+                setSelectedStop(selected ? null : stop.id);
+              }}
+              style={isDragging ? { transform: `translateY(${dragging.y}px)` } : undefined}
+              className={cn(
+                "group relative flex cursor-pointer gap-2.5 rounded-lg border p-2.5 transition-[border-color,box-shadow,background-color] duration-150",
+                selected
+                  ? "border-coral/50 bg-surface shadow-lift"
+                  : conflicted
+                    ? "border-alert/45 bg-surface shadow-card"
+                    : "border-transparent bg-surface shadow-card hover:border-line-strong",
+                isDragging && "z-10 scale-[1.02] cursor-grabbing shadow-lift",
+                changedStopIds.has(stop.id) && "tm-change-flash",
+              )}
+            >
+              {viewers.length > 0 && (
+                <span
+                  className="pointer-events-none absolute inset-0 rounded-lg"
+                  style={{ boxShadow: `0 0 0 2px ${viewers[0].color}` }}
+                />
+              )}
+              <div className="flex flex-col items-center gap-1 pt-0.5">
+                <span
+                  className="flex size-8 shrink-0 items-center justify-center rounded-full text-white"
+                  style={{ backgroundColor: meta.colorVar }}
+                  title={meta.label}
+                >
+                  <Icon weight="fill" className="size-4" />
+                </span>
+                <button
+                  aria-label="拖曳排序"
+                  onPointerDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    beginDrag(e, stop, i, true);
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="cursor-grab touch-none rounded p-0.5 text-ink-faint opacity-40 transition-opacity group-hover:opacity-100 active:cursor-grabbing"
+                >
+                  <DotsSixVertical weight="bold" className="size-4" />
+                </button>
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline gap-2">
+                  {stop.startTime && (
+                    <span
+                      className={cn(
+                        "tm-num flex shrink-0 items-center gap-1 text-[13px] font-semibold",
+                        conflicted ? "text-alert" : "text-ink",
+                      )}
+                    >
+                      {conflicted && (
+                        <Hint tip={CONFLICT_TIP}>
+                          <Warning weight="fill" className="size-3.5 text-alert" />
+                        </Hint>
+                      )}
+                      {stop.startTime}
+                      {stop.category === "lodging" ? (
+                        <span className="text-[11px] font-normal text-ink-faint">
+                          入住{isOvernightLodging(stop) && ` · 退房 ${stop.endTime}`}
+                        </span>
+                      ) : (
+                        stop.endTime && (
+                          <span className={conflicted ? "text-alert/70" : "text-ink-faint"}>
+                            {" "}
+                            - {stop.endTime}
+                          </span>
+                        )
+                      )}
+                    </span>
+                  )}
+                  <span className="truncate text-sm font-medium text-ink">{stop.name}</span>
+                </div>
+                <div className="mt-1 flex flex-wrap items-center gap-1">
+                  <BookingBadge stop={stop} />
+                  <VerifyBadge stop={stop} />
+                  {viewers.length > 0 && <AvatarStack users={viewers} size="xs" max={2} />}
+                </div>
+                {stop.notes && (
+                  <p className="mt-1 line-clamp-1 text-xs text-ink-soft">{stop.notes}</p>
+                )}
+                {stop.updatedByUserId && (
+                  <p className="mt-0.5 text-[10px] text-ink-faint opacity-0 transition-opacity group-hover:opacity-100">
+                    {memberOf(stop.updatedByUserId).name} 編輯
+                  </p>
+                )}
+              </div>
+
+              <StopThumb stop={stop} className="size-14 shrink-0" />
+            </div>
+            {showIndicatorBelow && <DropLine />}
+
+            {/* 交通段 */}
+            {nextStop && (
+              <div className="flex py-2 pl-[1.35rem]">
+                <div className="flex min-w-0 flex-1 items-center border-l-2 border-dotted border-line-strong py-0.5 pl-4">
+                  {leg ? (
+                    <LegEditor stop={stop} nextStop={nextStop} leg={leg}>
+                      <button
+                        className={cn(
+                          "tm-focus flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border px-3 py-2 text-left text-xs shadow-card transition-[border-color,box-shadow] hover:shadow-lift",
+                          leg.needsReview
+                            ? "border-sun/60 bg-sun-wash text-sun-deep hover:border-sun"
+                            : "border-line bg-surface text-ink-soft hover:border-ocean/40",
+                        )}
+                      >
+                        {leg.needsReview && (
+                          <Hint tip={"相鄰地點被移動或改了時間\n請重新確認這段交通(點開重新設定)"}>
+                            <span className="flex items-center gap-1 font-medium">
+                              <Warning weight="fill" className="size-3.5" />
+                              需重新確認
+                            </span>
+                          </Hint>
+                        )}
+                        <LegSummary leg={leg} muted={leg.needsReview} />
+                      </button>
+                    </LegEditor>
+                  ) : (
+                    <LegEditor stop={stop} nextStop={nextStop} leg={null}>
+                      <button className="tm-focus flex items-center gap-1 rounded-full border border-dashed border-line-strong px-3 py-1.5 text-xs text-ink-soft transition-[color,border-color,background-color] hover:border-ocean hover:bg-ocean-wash hover:text-ocean-deep">
+                        <Plus weight="bold" className="size-3.5" />
+                        安排交通
+                      </button>
+                    </LegEditor>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {carryLodging && !carryLodging.isCheckoutDay && activeDay && (
+        <CarryLodgingRow
+          carry={carryLodging}
+          edge="bottom"
+          day={activeDay}
+          adjacentStop={stops[stops.length - 1] ?? null}
+        />
+      )}
+
+      <div className="mt-2">
+        <AddStop dayId={activeDayId} />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 續住錨點列(虛擬列,資料仍在原住宿上):
+ * top=「昨晚住這」+ 離開時間 + 住宿→首行程交通;bottom=「今晚回這裡續住」+ 回到時間 + 末行程→住宿交通。
+ * 時間與交通存在 day 上(lodgingDepartTime/ReturnTime/MorningLeg/EveningLeg)。
+ */
+function CarryLodgingRow({
+  carry,
+  edge,
+  day,
+  adjacentStop,
+}: {
+  carry: NonNullable<ReturnType<typeof carryOverLodging>>;
+  edge: "top" | "bottom";
+  day: Day;
+  adjacentStop: Stop | null;
+}) {
+  const { editOps } = useTrip();
+  const { setSelectedStop } = useSelection();
+  const isTop = edge === "top";
+  const label = !isTop ? "今晚回這裡續住" : carry.isCheckoutDay ? "昨晚住這,今天退房" : "昨晚住這";
+  const carryLeg = isTop ? day.lodgingMorningLeg : day.lodgingEveningLeg;
+  const legField = isTop ? "lodgingMorningLeg" : "lodgingEveningLeg";
+  // 早上離開住宿的時間:中間天存 day.lodgingDepartTime;退房日就是住宿的退房時間
+  const departValue = carry.isCheckoutDay
+    ? isOvernightLodging(carry.stop)
+      ? carry.stop.endTime
+      : null
+    : day.lodgingDepartTime;
+
+  const fakeLeg: Leg | null = carryLeg
+    ? {
+        id: `carry-${day.id}-${edge}`,
+        tripId: day.tripId,
+        fromStopId: "",
+        toStopId: "",
+        distanceM: null,
+        needsReview: false,
+        updatedAt: 0,
+        ...carryLeg,
+      }
+    : null;
+  const saveLeg = (p: CarryLeg | null) =>
+    editOps(
+      [{ op: "update_day", dayId: day.id, patch: { [legField]: p } }],
+      p
+        ? isTop
+          ? `調整 ${carry.stop.name} → ${adjacentStop?.name ?? "首個行程"} 交通`
+          : `調整 ${adjacentStop?.name ?? "最後行程"} → ${carry.stop.name} 交通`
+        : "清除住宿交通",
+    );
+  // LegEditor 的兩端:交通對象是真實 stop,住宿端用當天時間構造(帶入預設用)
+  const hotelAsFrom: Stop = { ...carry.stop, startTime: null, endTime: departValue };
+  const hotelAsTo: Stop = { ...carry.stop, startTime: day.lodgingReturnTime, endTime: null };
+
+  const legChip = adjacentStop && (
+    <div className={cn("flex pl-[1.35rem]", isTop ? "pb-2" : "py-2")}>
+      <div className="flex min-w-0 flex-1 items-center border-l-2 border-dotted border-line-strong py-0.5 pl-4">
+        <LegEditor
+          stop={isTop ? hotelAsFrom : adjacentStop}
+          nextStop={isTop ? adjacentStop : hotelAsTo}
+          leg={fakeLeg}
+          saveOverride={saveLeg}
+          removeOverride={() => saveLeg(null)}
+        >
+          {fakeLeg ? (
+            <button className="tm-focus flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-line bg-surface px-3 py-2 text-left text-xs text-ink-soft shadow-card transition-[border-color,box-shadow] hover:border-ocean/40 hover:shadow-lift">
+              <LegSummary leg={fakeLeg} />
+            </button>
+          ) : (
+            <button className="tm-focus flex items-center gap-1 rounded-full border border-dashed border-line-strong px-3 py-1.5 text-xs text-ink-soft transition-[color,border-color,background-color] hover:border-ocean hover:bg-ocean-wash hover:text-ocean-deep">
+              <Plus weight="bold" className="size-3.5" />
+              {isTop ? "安排住宿出發交通" : "安排回住宿交通"}
+            </button>
+          )}
+        </LegEditor>
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      {!isTop && legChip}
+      <div
+        className={cn(
+          "flex items-center gap-2 overflow-hidden rounded-lg border border-dashed border-cat-lodging/45 bg-cat-lodging/5 px-2.5 py-2 whitespace-nowrap",
+          isTop ? "mb-1.5" : "mt-0",
+        )}
+      >
+        <span
+          className="flex size-7 shrink-0 items-center justify-center rounded-full text-white"
+          style={{ backgroundColor: "var(--tm-cat-lodging)" }}
+        >
+          <MoonStars weight="fill" className="size-3.5" />
+        </span>
+        <button
+          onClick={() => setSelectedStop(carry.stop.id)}
+          className="tm-focus min-w-0 flex-1 truncate text-left"
+          title="查看住宿詳情"
+        >
+          <span className="truncate text-sm font-medium text-ink">{carry.stop.name}</span>
+          <span className="block text-[11px] text-ink-soft">{label}</span>
+        </button>
+        {isTop && carry.isCheckoutDay && (
+          <Hint tip={"退房/出發時間(記錄在住宿的結束時間)\n今天第一個行程早於這個時間會出現警示"}>
+            <span className="flex shrink-0 items-center gap-1 text-[11px] text-ink-soft">
+              退房
+              <TimeField
+                value={departValue}
+                onChange={(v) =>
+                  editOps(
+                    [{ op: "update_stop", stopId: carry.stop.id, patch: { endTime: v } }],
+                    `設定 ${carry.stop.name} 退房時間`,
+                  )
+                }
+                placeholder="--:--"
+              />
+            </span>
+          </Hint>
+        )}
+        {isTop && !carry.isCheckoutDay && (
+          <Hint tip={"今天早上幾點離開住宿\n第一個行程早於這個時間會出現警示"}>
+            <span className="flex shrink-0 items-center gap-1 text-[11px] text-ink-soft">
+              出發
+              <TimeField
+                value={departValue}
+                onChange={(v) =>
+                  editOps(
+                    [{ op: "update_day", dayId: day.id, patch: { lodgingDepartTime: v } }],
+                    `設定離開 ${carry.stop.name} 時間`,
+                  )
+                }
+                placeholder="--:--"
+              />
+            </span>
+          </Hint>
+        )}
+        {!isTop && (
+          <Hint tip={"今晚幾點回到住宿\n最後一個行程結束得比這晚會出現警示"}>
+            <span className="flex shrink-0 items-center gap-1 text-[11px] text-ink-soft">
+              回到
+              <TimeField
+                value={day.lodgingReturnTime}
+                onChange={(v) =>
+                  editOps(
+                    [{ op: "update_day", dayId: day.id, patch: { lodgingReturnTime: v } }],
+                    `設定回 ${carry.stop.name} 時間`,
+                  )
+                }
+                placeholder="--:--"
+              />
+            </span>
+          </Hint>
+        )}
+        <StopThumb stop={carry.stop} className="size-10 shrink-0" />
+      </div>
+      {isTop && legChip}
+    </>
+  );
+}
+
+/** 交通段內容:多段(轉車)時逐段呈現,單段時精簡一行。 */
+function LegSummary({ leg, muted }: { leg: Leg; muted?: boolean }) {
+  const steps = leg.transit?.steps?.filter((s) => s.line || s.departureTime) ?? [];
+  const LegIcon = LEG_MODE_ICON[leg.mode];
+
+  if (steps.length > 0) {
+    return (
+      <>
+        {steps.map((step, i) => {
+          const StepIcon =
+            LEG_MODE_ICON[(step.mode as keyof typeof LEG_MODE_ICON) ?? "transit"] ??
+            LEG_MODE_ICON.transit;
+          return (
+            <span key={i} className="flex min-w-0 items-center gap-1">
+              {i > 0 && <CaretRight className="size-3 shrink-0 opacity-50" />}
+              <span
+                className={cn(
+                  "flex size-4.5 shrink-0 items-center justify-center rounded-full text-white",
+                  muted ? "bg-sun-deep/70" : "bg-ocean",
+                )}
+              >
+                <StepIcon weight="fill" className="size-2.5" />
+              </span>
+              {step.line && <span className="max-w-32 truncate font-medium">{step.line}</span>}
+              {step.departureTime && step.arrivalTime && (
+                <span className="tm-num shrink-0 opacity-80">
+                  {step.departureTime}→{step.arrivalTime}
+                </span>
+              )}
+            </span>
+          );
+        })}
+        {leg.durationMin != null && (
+          <span className="tm-num shrink-0 font-medium">共 {leg.durationMin} 分</span>
+        )}
+        {leg.transit?.fare && <span className="tm-num shrink-0">{leg.transit.fare}</span>}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <span
+        className={cn(
+          "flex size-5 shrink-0 items-center justify-center rounded-full text-white",
+          muted ? "bg-sun-deep/70" : "bg-ocean",
+        )}
+      >
+        <LegIcon weight="fill" className="size-3" />
+      </span>
+      {leg.transit?.summary && (
+        <span className="max-w-44 truncate font-medium">{leg.transit.summary}</span>
+      )}
+      {leg.departureTime && leg.arrivalTime && (
+        <span className="tm-num">
+          {leg.departureTime}→{leg.arrivalTime}
+        </span>
+      )}
+      {leg.durationMin != null && <span className="tm-num">{leg.durationMin} 分</span>}
+      {leg.transit?.fare && <span className="tm-num">{leg.transit.fare}</span>}
+      {leg.notes && <span className="max-w-28 truncate opacity-80">·{leg.notes}</span>}
+    </>
+  );
+}
+
+function DropLine() {
+  return <div className="mx-2 my-0.5 h-0.5 rounded-full bg-coral" />;
+}
