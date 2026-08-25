@@ -5,7 +5,6 @@ import {
   AdvancedMarker,
   APIProvider,
   Map as GMap,
-  Polyline,
   useMap,
 } from "@vis.gl/react-google-maps";
 import { MapTrifold, Plus, X } from "@phosphor-icons/react";
@@ -42,16 +41,6 @@ function dayStopsOf(
 }
 
 // ---- 真地圖 ----
-
-const MODE_STYLE: Record<string, { color: string; dashed: boolean }> = {
-  walk: { color: "#8A8578", dashed: true },
-  transit: { color: "#0E9BA4", dashed: false },
-  drive: { color: "#3B82F6", dashed: false },
-  taxi: { color: "#E8A50C", dashed: false },
-  bike: { color: "#2FA866", dashed: false },
-  flight: { color: "#8B5CF6", dashed: false },
-  other: { color: "#8A8578", dashed: false },
-};
 
 function MapCanvas() {
   const { doc, changedStopIds } = useTrip();
@@ -91,7 +80,6 @@ function MapCanvas() {
         }}
       >
         <FitBounds stops={located} dayId={activeDayId} />
-        <DayRoute stops={located} legs={doc?.legs ?? []} />
         {located.map((stop, i) => {
           const idx = stops.indexOf(stop);
           const meta = CATEGORY_META[stop.category];
@@ -151,93 +139,6 @@ function FitBounds({ stops, dayId }: { stops: Stop[]; dayId: string | null }) {
   return null;
 }
 
-/** 當日路線:相鄰兩點間抓路線 polyline(server 代理+快取);leg 有存 polyline 就直接用。 */
-function DayRoute({ stops, legs }: { stops: Stop[]; legs: Leg[] }) {
-  const { googleReady } = useSession();
-  const [paths, setPaths] = useState<
-    Array<{ key: string; encoded: string; mode: string }>
-  >([]);
-
-  useEffect(() => {
-    if (!googleReady) return;
-    let cancelled = false;
-    const pairs: Array<{ from: Stop; to: Stop; mode: string; stored?: string }> = [];
-    for (let i = 0; i < stops.length - 1; i++) {
-      const leg = legs.find((l) => l.fromStopId === stops[i].id);
-      pairs.push({
-        from: stops[i],
-        to: stops[i + 1],
-        mode: leg?.mode ?? "transit",
-        stored: leg?.transit?.polyline,
-      });
-    }
-    (async () => {
-      const out: Array<{ key: string; encoded: string; mode: string }> = [];
-      for (const p of pairs) {
-        const k = `${p.from.id}-${p.to.id}-${p.mode}`;
-        if (p.stored) {
-          out.push({ key: k, encoded: p.stored, mode: p.mode });
-          continue;
-        }
-        try {
-          const params = new URLSearchParams({
-            fromLat: String(p.from.lat),
-            fromLng: String(p.from.lng),
-            toLat: String(p.to.lat),
-            toLng: String(p.to.lng),
-            mode: p.mode === "other" || p.mode === "flight" ? "transit" : p.mode,
-          });
-          const d = await apiFetch<{ alternatives: Array<{ encodedPolyline: string }> }>(
-            `/api/google/directions?${params}`,
-          );
-          if (d.alternatives[0]?.encodedPolyline) {
-            out.push({ key: k, encoded: d.alternatives[0].encodedPolyline, mode: p.mode });
-          }
-        } catch {
-          // 單段失敗不影響其他段
-        }
-        if (cancelled) return;
-      }
-      if (!cancelled) setPaths(out);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [googleReady, stops, legs]);
-
-  return (
-    <>
-      {paths.map((p) => {
-        const style = MODE_STYLE[p.mode] ?? MODE_STYLE.other;
-        return (
-          <Polyline
-            key={p.key}
-            encodedPath={p.encoded}
-            strokeColor={style.color}
-            strokeOpacity={style.dashed ? 0 : 0.85}
-            strokeWeight={4}
-            icons={
-              style.dashed
-                ? [
-                    {
-                      icon: {
-                        path: "M 0,-1 0,1",
-                        strokeOpacity: 0.8,
-                        strokeColor: style.color,
-                        scale: 3,
-                      },
-                      offset: "0",
-                      repeat: "14px",
-                    },
-                  ]
-                : undefined
-            }
-          />
-        );
-      })}
-    </>
-  );
-}
 
 /** 點地圖上的 POI → 小卡 + 一鍵加入行程。 */
 function PoiCard({

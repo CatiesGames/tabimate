@@ -576,6 +576,29 @@ function Composer({
     Array<{ id: string; url: string; uploading: boolean }>
   >([]);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const bdRef = useRef<HTMLDivElement>(null);
+
+  // 輸入框內的 @ 提及染色(與送出判定同一規則:文字裡仍含 @label 才算)
+  const highlightSegments = (): React.ReactNode[] => {
+    const marks = mentions
+      .map((m) => ({ m, at: text.indexOf(`@${m.label}`) }))
+      .filter((x) => x.at >= 0)
+      .sort((a, b) => a.at - b.at);
+    const parts: React.ReactNode[] = [];
+    let pos = 0;
+    for (const { m, at } of marks) {
+      if (at < pos) continue;
+      if (at > pos) parts.push(text.slice(pos, at));
+      parts.push(
+        <span key={`${m.kind}:${m.id}:${at}`} className="rounded-[3px] bg-ocean-wash text-ocean-deep">
+          @{m.label}
+        </span>,
+      );
+      pos = at + m.label.length + 1;
+    }
+    if (pos < text.length) parts.push(text.slice(pos));
+    return parts;
+  };
   const fileRef = useRef<HTMLInputElement>(null);
 
   const autosize = () => {
@@ -690,7 +713,17 @@ function Composer({
             e.target.value = "";
           }}
         />
-        <textarea
+        <div className="relative min-w-0 flex-1 rounded-lg bg-surface">
+          {/* @ 提及高亮層:與 textarea 同排版,只染色不改字重(避免兩層錯位) */}
+          <div
+            ref={bdRef}
+            aria-hidden
+            className="tm-scroll pointer-events-none absolute inset-0 overflow-hidden rounded-lg border border-transparent px-3 py-1.5 text-[13px] leading-relaxed break-words whitespace-pre-wrap text-ink"
+          >
+            {highlightSegments()}
+            {"\u200b"}
+          </div>
+          <textarea
           ref={taRef}
           value={text}
           disabled={disabled}
@@ -742,8 +775,12 @@ function Composer({
               }
             }
           }}
-          className="tm-focus tm-scroll min-h-9 flex-1 resize-none rounded-lg border border-line bg-surface px-3 py-1.5 text-[13px] leading-relaxed text-ink placeholder:text-ink-faint focus-visible:border-ocean focus-visible:ring-2 focus-visible:ring-ocean/25 focus-visible:outline-none disabled:opacity-50"
+          onScroll={(e) => {
+            if (bdRef.current) bdRef.current.scrollTop = e.currentTarget.scrollTop;
+          }}
+          className="tm-focus tm-scroll relative min-h-9 w-full resize-none rounded-lg border border-line bg-transparent px-3 py-1.5 text-[13px] leading-relaxed text-transparent caret-ink placeholder:text-ink-faint focus-visible:border-ocean focus-visible:ring-2 focus-visible:ring-ocean/25 focus-visible:outline-none disabled:opacity-50"
         />
+        </div>
         {busy ? (
           <span className="mb-0.5 flex shrink-0 items-center gap-1.5">
             {(text.trim() || uploads.some((u) => !u.uploading)) && (
