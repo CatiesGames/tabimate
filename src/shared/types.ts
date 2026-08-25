@@ -259,6 +259,15 @@ export type BookingAuditItem = {
   sources?: Array<{ url: string; title: string }>;
 };
 
+/** 聊天 @ 提及:把行程中的天/地點/交通指名給塔比。 */
+export type ChatMention = {
+  kind: "day" | "stop" | "leg";
+  /** day id / stop id / leg 的 fromStopId */
+  id: string;
+  /** 輸入框顯示的文字(不含 @) */
+  label: string;
+};
+
 export type ChatMessage = {
   id: string;
   tripId: string;
@@ -271,6 +280,7 @@ export type ChatMessage = {
   model: string | null;
   blocks: ChatBlock[];
   attachmentIds: string[];
+  mentions: ChatMention[];
   /** 塔比回覆時所回應的那則訊息(引用氣泡+跳轉)。 */
   replyToMessageId: string | null;
   createdAt: number;

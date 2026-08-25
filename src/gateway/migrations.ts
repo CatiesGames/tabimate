@@ -243,6 +243,10 @@ const MIGRATIONS: string[] = [
   ALTER TABLE days ADD COLUMN lodging_morning_leg TEXT;
   ALTER TABLE days ADD COLUMN lodging_evening_leg TEXT;
   `,
+  // v10 — 聊天 @ 提及(指名天/地點/交通給塔比)
+  `
+  ALTER TABLE chat_messages ADD COLUMN mentions TEXT NOT NULL DEFAULT '[]';
+  `,
 ];
 
 export function migrate(db: Database) {

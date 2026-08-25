@@ -21,6 +21,7 @@ export const SETTING_DEFAULTS: Record<string, string> = {
   limit_place_details_monthly: "900",
   limit_photos_monthly: "900",
   limit_routes_monthly: "9000",
+  limit_staticmap_monthly: "9000",
 };
 
 export function seedSettings() {

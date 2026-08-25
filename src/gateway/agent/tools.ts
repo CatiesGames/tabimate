@@ -27,7 +27,7 @@ const OPERATIONS_DOC = `每個 operation 是一個物件,op 欄位決定種類:
 - {"op":"remove_stop","stopId":"..."}
 - {"op":"set_leg","fromStopId":"...","mode":"transit","durationMin?":25,"departureTime?":"14:03","arrivalTime?":"14:28","transit?":{"summary":"JR山手線","steps":[...],"fare":"¥170"},"notes?":"..."} 交通段掛在出發地點上,目的地自動是下一站。mode:walk|transit|drive|taxi|bike|flight|other
 - {"op":"remove_leg","fromStopId":"..."}
-- {"op":"set_verification","stopId":"...","status":"verified","sources":[{"url":"...","title":"...","checkedAt":0}]}
+- {"op":"set_verification","stopId":"...","status":"verified|stale|unverified","sources":[{"url":"...","title":"...","checkedAt":0}]} — verified/stale **必須附至少一筆真實來源**(成員要能點開對照),否則整包提案會被拒
 - {"op":"update_trip","patch":{"title?","destination?","startDate?":"YYYY-MM-DD"}}
 dayId/stopId 用 get_itinerary 回傳的真實 id;同一批內先新增的實體可用 "$tempId" 引用。
 booking 物件欄位:platform/url/confirmationCode/price/onSaleDate/deadline/note。

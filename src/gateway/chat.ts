@@ -1,5 +1,5 @@
 // 聊天訊息與 block 的持久層。block 級持久化;token delta 只走 WS。
-import type { ChatBlock, ChatMessage, ChatMessageStatus } from "../shared/types";
+import type { ChatBlock, ChatMention, ChatMessage, ChatMessageStatus } from "../shared/types";
 import { db, newId, now } from "./db";
 
 function rowToMessage(r: Record<string, unknown>, blocks: ChatBlock[]): ChatMessage {
@@ -15,6 +15,7 @@ function rowToMessage(r: Record<string, unknown>, blocks: ChatBlock[]): ChatMess
     model: (r.model as string) ?? null,
     blocks,
     attachmentIds: JSON.parse((r.attachment_ids as string) || "[]"),
+    mentions: JSON.parse((r.mentions as string) || "[]"),
     replyToMessageId: (r.reply_to_message_id as string) ?? null,
     createdAt: r.created_at as number,
     completedAt: (r.completed_at as number) ?? null,
@@ -29,6 +30,7 @@ export function insertMessage(args: {
   status?: ChatMessageStatus;
   model?: string | null;
   attachmentIds?: string[];
+  mentions?: ChatMention[];
   replyToMessageId?: string | null;
 }): ChatMessage {
   const id = newId();
@@ -41,8 +43,8 @@ export function insertMessage(args: {
           .get(args.tripId) as { s: number }
       ).s + 1;
     db.run(
-      `INSERT INTO chat_messages (id, trip_id, seq, role, user_id, content, status, model, attachment_ids, reply_to_message_id, created_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+      `INSERT INTO chat_messages (id, trip_id, seq, role, user_id, content, status, model, attachment_ids, mentions, reply_to_message_id, created_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         id,
         args.tripId,
@@ -53,6 +55,7 @@ export function insertMessage(args: {
         args.status ?? "complete",
         args.model ?? null,
         JSON.stringify(args.attachmentIds ?? []),
+        JSON.stringify(args.mentions ?? []),
         args.replyToMessageId ?? null,
         t,
       ],

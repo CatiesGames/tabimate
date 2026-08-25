@@ -40,14 +40,27 @@ export function registerChatRoutes() {
 
   route("POST", "/api/trips/:tripId/chat", async (ctx) => {
     const user = requireTripUser(ctx, ctx.params.tripId);
-    const body = await readJson<{ text?: string; attachmentIds?: string[] }>(ctx.req);
+    const body = await readJson<{
+      text?: string;
+      attachmentIds?: string[];
+      mentions?: Array<{ kind?: string; id?: string; label?: string }>;
+    }>(ctx.req);
     const text = body.text?.trim() ?? "";
     if (!text && !(body.attachmentIds?.length)) throw new HttpError(400, "empty_message");
+    const mentions = (body.mentions ?? [])
+      .filter(
+        (m): m is { kind: "day" | "stop" | "leg"; id: string; label: string } =>
+          (m.kind === "day" || m.kind === "stop" || m.kind === "leg") &&
+          typeof m.id === "string" &&
+          typeof m.label === "string",
+      )
+      .slice(0, 12);
     const message = enqueueChat(
       ctx.params.tripId,
       user.id,
       text || "(請看附圖)",
       body.attachmentIds ?? [],
+      mentions,
     );
     return json({ message });
   });

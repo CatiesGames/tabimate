@@ -21,10 +21,18 @@ import {
 import { apiFetch } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { chatDateLabel, clockLabel } from "@/lib/dates";
-import type { ChatMessage } from "@/shared/types";
-import { useChat, useSession } from "@/lib/workspace/WorkspaceProvider";
+import type { ChatMention, ChatMessage } from "@/shared/types";
+import { useChat, useSelection, useSession, useTrip } from "@/lib/workspace/WorkspaceProvider";
 import { Avatar, PulseDots, Spinner, Tag } from "@/components/ui";
 import { BlockRenderer, MiniMarkdown, ToolStatusBlock } from "./blocks";
+import {
+  buildCandidates,
+  filterCandidates,
+  findMentionTrigger,
+  MentionPicker,
+  MentionText,
+  type MentionCandidate,
+} from "./mentions";
 import type { ChatBlock } from "@/shared/types";
 import { ArrowClockwise, CaretDown, ImagesSquare, Wrench, XCircle } from "@phosphor-icons/react";
 
@@ -68,8 +76,8 @@ export function ChatPanel() {
       <Composer
         uploadRef={uploadRef}
         disabled={!agent.available}
-        onSend={async (text, attachmentIds) => {
-          await apiFetch(`/api/trips/${tripId}/chat`, { json: { text, attachmentIds } });
+        onSend={async (text, attachmentIds, mentions) => {
+          await apiFetch(`/api/trips/${tripId}/chat`, { json: { text, attachmentIds, mentions } });
         }}
       />
       {!agent.available && (
@@ -280,7 +288,7 @@ const MessageRow = function MessageRow({ message }: { message: ChatMessage }) {
             {message.status === "stopped" && <Tag tone="neutral">已取消</Tag>}
           </p>
           <div className="mt-0.5 rounded-lg rounded-tl-sm bg-sunken px-3 py-2 text-[13px] text-ink">
-            {message.content}
+            <MentionText content={message.content} mentions={message.mentions} />
             {message.attachmentIds.length > 0 && (
               <span className="mt-1.5 flex flex-wrap gap-1.5">
                 {message.attachmentIds.map((id) => (
@@ -318,7 +326,7 @@ function UserMessageActions({ message }: { message: ChatMessage }) {
   const resend = async () => {
     setBusy(true);
     await apiFetch(`/api/trips/${tripId}/chat`, {
-      json: { text: message.content, attachmentIds: message.attachmentIds },
+      json: { text: message.content, attachmentIds: message.attachmentIds, mentions: message.mentions },
     }).catch(() => {});
     setBusy(false);
   };
@@ -520,16 +528,50 @@ function Composer({
   uploadRef,
 }: {
   disabled: boolean;
-  onSend: (text: string, attachmentIds: string[]) => Promise<void>;
+  onSend: (text: string, attachmentIds: string[], mentions: ChatMention[]) => Promise<void>;
   uploadRef?: React.RefObject<{ upload: (f: File) => void } | null>;
 }) {
   const { store } = useChat();
   const { tripId } = useSession();
+  const { doc } = useTrip();
+  const { activeDayId } = useSelection();
   useSyncExternalStore(store.subscribeStream, store.streamVersion, store.streamVersion);
   const busy = store.agentPhase !== "idle";
 
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [mentions, setMentions] = useState<ChatMention[]>([]);
+  const [trigger, setTrigger] = useState<{ start: number; query: string } | null>(null);
+  const [pickIdx, setPickIdx] = useState(0);
+  const candidates: MentionCandidate[] =
+    trigger && doc ? filterCandidates(buildCandidates(doc, activeDayId), trigger.query) : [];
+
+  const detectTrigger = (v: string, caret: number) => {
+    setTrigger(findMentionTrigger(v, caret));
+    setPickIdx(0);
+  };
+
+  const pick = (c: MentionCandidate) => {
+    if (!trigger) return;
+    const before = text.slice(0, trigger.start);
+    const after = text.slice(trigger.start + 1 + trigger.query.length);
+    setText(`${before}@${c.label} ${after}`);
+    setMentions((ms) =>
+      ms.some((m) => m.kind === c.kind && m.id === c.id)
+        ? ms
+        : [...ms, { kind: c.kind, id: c.id, label: c.label }],
+    );
+    setTrigger(null);
+    setTimeout(() => {
+      const ta = taRef.current;
+      if (ta) {
+        ta.focus();
+        const pos = before.length + c.label.length + 2;
+        ta.setSelectionRange(pos, pos);
+      }
+      autosize();
+    }, 0);
+  };
   const [uploads, setUploads] = useState<
     Array<{ id: string; url: string; uploading: boolean }>
   >([]);
@@ -575,8 +617,11 @@ function Composer({
     if ((!t && ready.length === 0) || sending || disabled) return;
     setSending(true);
     try {
-      await onSend(t, ready);
+      // 只送出仍留在文字裡的提及(使用者刪掉 @xxx 就不算)
+      await onSend(t, ready, mentions.filter((m) => t.includes(`@${m.label}`)));
       setText("");
+      setMentions([]);
+      setTrigger(null);
       setUploads([]);
       setTimeout(autosize, 0);
     } finally {
@@ -622,7 +667,10 @@ function Composer({
           ))}
         </div>
       )}
-      <div className="flex items-end gap-1.5">
+      <div className="relative flex items-end gap-1.5">
+        {trigger && (
+          <MentionPicker items={candidates} activeIndex={pickIdx} onPick={pick} onHover={setPickIdx} />
+        )}
         <button
           aria-label="附加圖片"
           disabled={disabled}
@@ -650,10 +698,38 @@ function Composer({
           placeholder={disabled ? "塔比休息中" : "跟塔比討論行程…(Enter 送出)"}
           onChange={(e) => {
             setText(e.target.value);
+            detectTrigger(e.target.value, e.target.selectionStart ?? e.target.value.length);
             autosize();
           }}
+          onClick={(e) => {
+            const ta = e.currentTarget;
+            detectTrigger(ta.value, ta.selectionStart ?? ta.value.length);
+          }}
+          onBlur={() => setTimeout(() => setTrigger(null), 120)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+            if (e.nativeEvent.isComposing) return;
+            if (trigger && candidates.length > 0) {
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setPickIdx((i) => (i + 1) % candidates.length);
+                return;
+              }
+              if (e.key === "ArrowUp") {
+                e.preventDefault();
+                setPickIdx((i) => (i - 1 + candidates.length) % candidates.length);
+                return;
+              }
+              if (e.key === "Enter" || e.key === "Tab") {
+                e.preventDefault();
+                pick(candidates[pickIdx]);
+                return;
+              }
+              if (e.key === "Escape") {
+                setTrigger(null);
+                return;
+              }
+            }
+            if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
               send();
             }

@@ -484,6 +484,10 @@ export function applyOperations(
         if (!VERIFY_STATUSES.includes(op.status)) {
           throw new ChangesetError(`未知查證狀態 ${op.status}`, i);
         }
+        // 標成已查證/資訊衝突一定要附來源,否則成員無從對照(unverified 可清空)
+        if (op.status !== "unverified" && !(op.sources && op.sources.length > 0)) {
+          throw new ChangesetError("set_verification 標為 verified/stale 時必須附至少一筆來源(url+title)", i);
+        }
         stop.verifyStatus = op.status;
         stop.verifySources = op.sources ?? [];
         stop.verifiedAt = op.status === "verified" ? meta.now : stop.verifiedAt;

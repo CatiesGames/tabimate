@@ -181,6 +181,18 @@ export function PrintView({ tripId }: { tripId: string }) {
               {day.title && <span className="text-sm text-ink-soft">{day.title}</span>}
             </h2>
 
+            {/* 當天地圖:編號 marker 依行程順序連線,一眼看出移動方向 */}
+            {googleReady && stops.some((st) => st.lat != null && st.lng != null) && (
+              <img
+                src={`/api/google/staticmap?day=${day.id}`}
+                alt={`Day ${di + 1} 地圖`}
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).style.display = "none";
+                }}
+                className="mb-2 w-full rounded-lg border border-line object-cover"
+                style={{ printColorAdjust: "exact" }}
+              />
+            )}
             {(() => {
               const carry = carryOverLodging(days, doc.stops, day.id);
               if (!carry) return null;

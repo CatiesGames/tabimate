@@ -8,8 +8,10 @@ import {
   GoogleUnconfigured,
   placeDetails,
   placePhoto,
+  staticMap,
   type Waypoint,
 } from "../google";
+import { db } from "../db";
 import { HttpError, json, route } from "../http";
 import { getSetting } from "../settings";
 
@@ -78,6 +80,30 @@ export function registerGoogleRoutes() {
       headers: {
         "content-type": "image/jpeg",
         "cache-control": "private, max-age=2592000",
+        "X-Cache": cache,
+      },
+    });
+  });
+
+  // PDF 每日地圖:該天所有有座標的地點,依順序編號+連線
+  route("GET", "/api/google/staticmap", async (ctx) => {
+    const { user } = requireUser(ctx);
+    const dayId = ctx.url.searchParams.get("day") ?? "";
+    const day = db.query("SELECT trip_id FROM days WHERE id = ?").get(dayId) as {
+      trip_id: string;
+    } | null;
+    if (!day || day.trip_id !== user.trip_id) throw new HttpError(404, "day_not_found");
+    const pts = db
+      .query(
+        "SELECT lat, lng FROM stops WHERE day_id = ? AND lat IS NOT NULL AND lng IS NOT NULL ORDER BY position",
+      )
+      .all(dayId) as Array<{ lat: number; lng: number }>;
+    if (pts.length === 0) throw new HttpError(404, "no_located_stops");
+    const { path, cache } = await guard(() => staticMap(pts));
+    return new Response(Bun.file(path), {
+      headers: {
+        "content-type": "image/png",
+        "cache-control": "private, max-age=86400",
         "X-Cache": cache,
       },
     });

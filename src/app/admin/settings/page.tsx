@@ -144,6 +144,7 @@ export default function AdminSettingsPage() {
             [
               ["autocomplete", "limit_autocomplete_monthly", "地點搜尋", "Essentials · 每月 1 萬次免費"],
               ["routes", "limit_routes_monthly", "路線規劃", "Essentials · 每月 1 萬次免費"],
+              ["staticmap", "limit_staticmap_monthly", "PDF 靜態地圖", "Essentials · 每月 1 萬次免費"],
               ["place_details", "limit_place_details_monthly", "地點詳情(含營業時間/評分)", "Enterprise · 每月僅 1 千次免費"],
               ["photos", "limit_photos_monthly", "地點照片", "Enterprise · 每月僅 1 千次免費"],
             ] as const
@@ -249,7 +250,7 @@ const GUIDE_STEPS: Array<{
   },
   {
     title: "啟用三個 API",
-    body: "在 API 程式庫分別搜尋並「啟用」:Maps JavaScript API(互動地圖)、Places API (New)(地點搜尋/營業時間/照片)、Routes API(路線與大眾運輸班次)。三個都要啟用。",
+    body: "在 API 程式庫分別搜尋並「啟用」:Maps JavaScript API(互動地圖)、Places API (New)(地點搜尋/營業時間/照片)、Routes API(路線與大眾運輸班次)、Maps Static API(PDF 匯出的每日地圖)。四個都要啟用。",
     link: {
       href: "https://console.cloud.google.com/apis/library",
       label: "API 程式庫",
@@ -257,7 +258,7 @@ const GUIDE_STEPS: Array<{
   },
   {
     title: "建立第 1 把:伺服器 API Key",
-    body: "「憑證」→ 建立憑證 → API 金鑰。建好後點進金鑰編輯:「應用程式限制」選「無」,「API 限制」選「限制金鑰」並勾 Places API (New) 與 Routes API。複製金鑰貼到下面的「伺服器 API Key」欄位。",
+    body: "「憑證」→ 建立憑證 → API 金鑰。建好後點進金鑰編輯:「應用程式限制」選「無」,「API 限制」選「限制金鑰」並勾 Places API (New)、Routes API 與 Maps Static API。複製金鑰貼到下面的「伺服器 API Key」欄位。",
     link: {
       href: "https://console.cloud.google.com/apis/credentials",
       label: "憑證頁面",

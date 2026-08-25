@@ -3,7 +3,7 @@
 import { mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 
-import type { ChatBlock, ChatMessage } from "../../shared/types";
+import type { ChatBlock, ChatMention, ChatMessage } from "../../shared/types";
 import { publish, subscribe } from "../bus";
 import {
   finalizeMessage,
@@ -77,6 +77,7 @@ export function enqueueChat(
   userId: string,
   text: string,
   attachmentIds: string[],
+  mentions: ChatMention[] = [],
 ): ChatMessage {
   if (!claudeAvailable) {
     throw new HttpError(503, "agent_unavailable", "claude CLI 未安裝或不可用");
@@ -88,6 +89,7 @@ export function enqueueChat(
     content: text,
     status: "queued",
     attachmentIds,
+    mentions,
   });
   db.run(
     "INSERT INTO agent_jobs (id, trip_id, chat_message_id, created_at) VALUES (?,?,?,?)",
@@ -248,6 +250,36 @@ function toolLabel(name: string, input: Record<string, unknown> | null): string 
   }
 }
 
+function describeMention(tripId: string, m: ChatMention): string {
+  if (m.kind === "day") {
+    const d = db
+      .query(
+        "SELECT position, title FROM days WHERE id = ? AND trip_id = ?",
+      )
+      .get(m.id, tripId) as { position: number; title: string | null } | null;
+    if (!d) return `@${m.label} → 這一天已被移除`;
+    return `@${m.label} → day id "${m.id}"(Day ${d.position + 1}${d.title ? `,${d.title}` : ""})`;
+  }
+  const s = db
+    .query(
+      `SELECT s.name, s.category, s.start_time, s.end_time, d.position AS day_pos
+       FROM stops s JOIN days d ON d.id = s.day_id WHERE s.id = ? AND d.trip_id = ?`,
+    )
+    .get(m.id, tripId) as {
+    name: string;
+    category: string;
+    start_time: string | null;
+    end_time: string | null;
+    day_pos: number;
+  } | null;
+  if (!s) return `@${m.label} → 這個對象已被移除`;
+  const time = s.start_time ? `,${s.start_time}${s.end_time ? `-${s.end_time}` : ""}` : "";
+  if (m.kind === "stop") {
+    return `@${m.label} → stop id "${m.id}"(Day ${s.day_pos + 1},${s.category}${time})`;
+  }
+  return `@${m.label} → 交通段,掛在出發地點 fromStopId "${m.id}"(${s.name},Day ${s.day_pos + 1};set_leg/remove_leg 用這個 id)`;
+}
+
 export function buildPrompt(tripId: string, userMsg: ChatMessage): string {
   const trip = db
     .query(
@@ -301,6 +333,11 @@ export function buildPrompt(tripId: string, userMsg: ChatMessage): string {
   }
   db.run("UPDATE trips SET agent_last_rev = ? WHERE id = ?", [trip.itinerary_rev, tripId]);
 
+  if (userMsg.mentions.length > 0) {
+    lines.push(`使用者用 @ 指名了以下行程對象(直接用這些 id,不要靠名字猜):`);
+    for (const m of userMsg.mentions) lines.push(`- ${describeMention(tripId, m)}`);
+  }
+
   const feedback = pendingFeedback.get(tripId) ?? [];
   if (feedback.length > 0) {
     lines.push(`上次回覆之後的進展:`);
@@ -350,7 +387,7 @@ const SYSTEM_PROMPT = `你是「塔比」(Tabi),tabimate 的 AI 旅遊嚮導 —
 - 改行程:唯一途徑是 mcp__tabimate__propose_changes(提案制)。提案送出後立即返回,任一成員會在畫面上確認或拒絕,結果在你下一輪的 [context] 告知。絕不宣稱「已經加入/改好了」,要說「提案已送出,請在畫面上確認」。
 - 行程會在你不在場時被改動:成員可直接編輯,也可能把整個行程回滾到較早版本。[context] 開頭會列出上次對話後的所有更動;看到【版本回滾】就把記憶中的行程狀態視為作廢,先 get_itinerary 再行動。
 - 交通:成員問「A 到 B 怎麼去」→ 有 Google 時先 get_directions 拿真實路線與班次,再用 present_transit_options 呈現比較卡片(每個選項附好 legOp,成員點選即自動套用,不必再提案);成員已指定交通方式時,直接在提案中用 set_leg 寫入 mode、班次(transit.summary/steps)與出發抵達時間。
-- 查證:優先 get_place_details(營業時間/評分/照片),官網公告等細節用 WebSearch/WebFetch 補足;查證完用 report_verification 記錄結論與來源,或在提案中帶 set_verification。
+- 查證:優先 get_place_details(營業時間/評分/照片),官網公告等細節用 WebSearch/WebFetch 補足;查證完用 report_verification 記錄結論與來源,或在提案中帶 set_verification。**查證結論必須附上實際查過的來源連結(url+title),沒有來源的查證不成立**;成員也可能指名某個地點或交通請你查證,照樣附來源。
 - 預約:新增景點/餐廳時主動判斷是否需預約或購票,在 add_stop/update_stop 帶 bookingType 與 booking(platform/url/onSaleDate/deadline/price/note);成員問「哪些要先預約」→ 逐點查證後用 present_booking_audit 總結呈現。
 - 地點:search_places 拿 placeId(地點會自動帶座標與照片);get_google_status 顯示未設定時,改用 WebSearch 查資料、地點以名稱+地址建立。
 - 圖片:成員附圖時,訊息裡會附檔案路徑,用 Read 讀取。

@@ -22,13 +22,14 @@ export class GoogleQuotaExhausted extends Error {
 // ---- 用量計數(app 端「月」上限,對齊 Google 的月度免費額度)----
 // 只計「真的打到 Google」的呼叫;快取命中不計。逐日存列(後台可看今日/本月),上限按月加總判斷。
 
-export type UsageKind = "autocomplete" | "place_details" | "photos" | "routes";
+export type UsageKind = "autocomplete" | "place_details" | "photos" | "routes" | "staticmap";
 
 const LIMIT_KEY: Record<UsageKind, string> = {
   autocomplete: "limit_autocomplete_monthly",
   place_details: "limit_place_details_monthly",
   photos: "limit_photos_monthly",
   routes: "limit_routes_monthly",
+  staticmap: "limit_staticmap_monthly",
 };
 
 function today(): string {
@@ -301,6 +302,50 @@ export async function placePhoto(
   if (!res.ok) throw new GoogleApiError(res.status, "photo fetch failed");
   mkdirSync(PHOTO_DIR, { recursive: true });
   const path = join(PHOTO_DIR, `${k}.jpg`);
+  await Bun.write(path, await res.arrayBuffer());
+  db.run(
+    "INSERT OR REPLACE INTO g_photo_cache (key, place_id, path, fetched_at, expires_at) VALUES (?,?,?,?,?)",
+    [k, null, path, now(), now() + ttlMs("cache_ttl_photos_days", "days", 30)],
+  );
+  return { path, cache: "MISS" };
+}
+
+// ---- Static Maps(PDF 每日地圖:編號 marker + 依序連線;磁碟快取)----
+
+export async function staticMap(
+  points: Array<{ lat: number; lng: number }>,
+): Promise<{ path: string; cache: "HIT" | "MISS" }> {
+  const pts = points.slice(0, 40);
+  const k = hash(`staticmap|v1|${pts.map((p) => `${p.lat.toFixed(5)},${p.lng.toFixed(5)}`).join(";")}`);
+  const row = db
+    .query("SELECT path, expires_at FROM g_photo_cache WHERE key = ?")
+    .get(k) as { path: string; expires_at: number } | null;
+  if (row && row.expires_at > now() && (await Bun.file(row.path).exists())) {
+    return { path: row.path, cache: "HIT" };
+  }
+
+  chargeUsage("staticmap");
+  const params = new URLSearchParams({
+    size: "640x400",
+    scale: "2",
+    language: "zh-TW",
+    key: key(),
+  });
+  // 依行程順序連線(看得出當天移動方向);編號 marker(Static Maps label 只吃單一字元,>9 不標號)
+  pts.forEach((pt, i) => {
+    const label = i < 9 ? `|label:${i + 1}` : "";
+    params.append("markers", `size:mid|color:0xFF5D47${label}|${pt.lat},${pt.lng}`);
+  });
+  if (pts.length > 1) {
+    params.append(
+      "path",
+      `color:0x0E9BA4CC|weight:3|${pts.map((p) => `${p.lat},${p.lng}`).join("|")}`,
+    );
+  }
+  const res = await fetch(`https://maps.googleapis.com/maps/api/staticmap?${params}`);
+  if (!res.ok) throw new GoogleApiError(res.status, "static map fetch failed");
+  mkdirSync(PHOTO_DIR, { recursive: true });
+  const path = join(PHOTO_DIR, `${k}.png`);
   await Bun.write(path, await res.arrayBuffer());
   db.run(
     "INSERT OR REPLACE INTO g_photo_cache (key, place_id, path, fetched_at, expires_at) VALUES (?,?,?,?,?)",
