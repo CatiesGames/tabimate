@@ -31,6 +31,7 @@ import {
   findMentionTrigger,
   MentionPicker,
   MentionText,
+  resolveMentions,
   type MentionCandidate,
 } from "./mentions";
 import type { ChatBlock } from "@/shared/types";
@@ -540,11 +541,14 @@ function Composer({
 
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
-  const [mentions, setMentions] = useState<ChatMention[]>([]);
   const [trigger, setTrigger] = useState<{ start: number; query: string } | null>(null);
   const [pickIdx, setPickIdx] = useState(0);
-  const candidates: MentionCandidate[] =
-    trigger && doc ? filterCandidates(buildCandidates(doc, activeDayId), trigger.query) : [];
+  const allCandidates: MentionCandidate[] = doc ? buildCandidates(doc, activeDayId) : [];
+  const candidates: MentionCandidate[] = trigger
+    ? filterCandidates(allCandidates, trigger.query)
+    : [];
+  // 提及完全由文字推導:從選單選、或手動打出完整 @名稱,都算數(染色與送出同一規則)
+  const mentions = resolveMentions(text, allCandidates);
 
   const detectTrigger = (v: string, caret: number) => {
     setTrigger(findMentionTrigger(v, caret));
@@ -556,11 +560,6 @@ function Composer({
     const before = text.slice(0, trigger.start);
     const after = text.slice(trigger.start + 1 + trigger.query.length);
     setText(`${before}@${c.label} ${after}`);
-    setMentions((ms) =>
-      ms.some((m) => m.kind === c.kind && m.id === c.id)
-        ? ms
-        : [...ms, { kind: c.kind, id: c.id, label: c.label }],
-    );
     setTrigger(null);
     setTimeout(() => {
       const ta = taRef.current;
@@ -578,15 +577,12 @@ function Composer({
   const taRef = useRef<HTMLTextAreaElement>(null);
   const bdRef = useRef<HTMLDivElement>(null);
 
-  // 輸入框內的 @ 提及染色(與送出判定同一規則:文字裡仍含 @label 才算)
+  // 輸入框內的 @ 提及染色(與送出判定同一份 resolveMentions 結果)
   const highlightSegments = (): React.ReactNode[] => {
-    const marks = mentions
-      .map((m) => ({ m, at: text.indexOf(`@${m.label}`) }))
-      .filter((x) => x.at >= 0)
-      .sort((a, b) => a.at - b.at);
     const parts: React.ReactNode[] = [];
     let pos = 0;
-    for (const { m, at } of marks) {
+    for (const m of mentions) {
+      const at = m.at;
       if (at < pos) continue;
       if (at > pos) parts.push(text.slice(pos, at));
       parts.push(
@@ -640,10 +636,12 @@ function Composer({
     if ((!t && ready.length === 0) || sending || disabled) return;
     setSending(true);
     try {
-      // 只送出仍留在文字裡的提及(使用者刪掉 @xxx 就不算)
-      await onSend(t, ready, mentions.filter((m) => t.includes(`@${m.label}`)));
+      await onSend(
+        t,
+        ready,
+        mentions.map(({ kind, id, label }) => ({ kind, id, label })),
+      );
       setText("");
-      setMentions([]);
       setTrigger(null);
       setUploads([]);
       setTimeout(autosize, 0);

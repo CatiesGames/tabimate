@@ -36,6 +36,8 @@ export function Timeline() {
     fromIndex: number;
     overIndex: number;
     y: number;
+    /** 被拖區塊(卡片+其交通段)的高度,其他區塊讓位時滑動這個距離。 */
+    wrapH: number;
   } | null>(null);
 
   if (!doc || !activeDayId) return null;
@@ -55,13 +57,22 @@ export function Timeline() {
   ) => {
     const startY = startEvent.clientY;
     let started = immediate;
+    // 啟動當下快照各區塊位置(拖曳期間有 transform,不能量即時 rect)
+    let mids: number[] = [];
+    let wrapH = 0;
+    const snapshot = () => {
+      const els = [
+        ...(listRef.current?.querySelectorAll("[data-stop-wrap]") ?? []),
+      ] as HTMLElement[];
+      const rects = els.map((el) => el.getBoundingClientRect());
+      mids = rects.map((r) => r.top + r.height / 2);
+      wrapH = rects[index]?.height ?? 0;
+    };
     if (immediate) {
-      setDragging({ stopId: stop.id, fromIndex: index, overIndex: index, y: 0 });
+      snapshot();
+      setDragging({ stopId: stop.id, fromIndex: index, overIndex: index, y: 0, wrapH });
       document.body.style.userSelect = "none";
     }
-
-    const cardEls = () =>
-      [...(listRef.current?.querySelectorAll("[data-stop-card]") ?? [])] as HTMLElement[];
 
     const onMove = (ev: PointerEvent) => {
       const dy = ev.clientY - startY;
@@ -69,14 +80,14 @@ export function Timeline() {
         if (Math.abs(dy) < 6) return;
         started = true;
         suppressClick.current = true;
-        setDragging({ stopId: stop.id, fromIndex: index, overIndex: index, y: 0 });
+        snapshot();
+        setDragging({ stopId: stop.id, fromIndex: index, overIndex: index, y: 0, wrapH });
         document.body.style.userSelect = "none";
       }
-      const els = cardEls();
-      let over = index;
-      for (let i = 0; i < els.length; i++) {
-        const r = els[i].getBoundingClientRect();
-        if (ev.clientY > r.top + r.height / 2) over = i;
+      // over = 游標所在落點:高於全部中點 → 0;否則最後一個中點在游標上方的 i
+      let over = 0;
+      for (let i = 0; i < mids.length; i++) {
+        if (ev.clientY > mids[i]) over = i;
       }
       setDragging((d) => (d ? { ...d, y: dy, overIndex: over } : d));
     };
@@ -128,16 +139,30 @@ export function Timeline() {
         const conflicted = conflicts.has(stop.id);
         const viewers = viewersOfStop(stop.id);
         const isDragging = dragging?.stopId === stop.id;
-        const showIndicatorAbove =
-          dragging && !isDragging && dragging.overIndex === i && dragging.fromIndex > i;
-        const showIndicatorBelow =
-          dragging && !isDragging && dragging.overIndex === i && dragging.fromIndex < i;
+        // 讓位:被拖區塊經過的其他區塊往反方向平滑滑動(常見拖曳排序效果)
+        const shift =
+          dragging && !isDragging
+            ? dragging.fromIndex < i && i <= dragging.overIndex
+              ? -dragging.wrapH
+              : dragging.overIndex <= i && i < dragging.fromIndex
+                ? dragging.wrapH
+                : 0
+            : 0;
         const leg = legOf(stop.id);
         const nextStop = stops[i + 1];
 
         return (
-          <div key={stop.id}>
-            {showIndicatorAbove && <DropLine />}
+          <div
+            key={stop.id}
+            data-stop-wrap
+            style={
+              dragging
+                ? isDragging
+                  ? { transform: `translateY(${dragging.y}px)`, position: "relative", zIndex: 10 }
+                  : { transform: shift ? `translateY(${shift}px)` : undefined, transition: "transform 160ms ease" }
+                : undefined
+            }
+          >
             <div
               data-stop-card
               onPointerDown={(e) => {
@@ -150,7 +175,6 @@ export function Timeline() {
                 if (suppressClick.current) return;
                 setSelectedStop(selected ? null : stop.id);
               }}
-              style={isDragging ? { transform: `translateY(${dragging.y}px)` } : undefined}
               className={cn(
                 "group relative flex cursor-pointer gap-2.5 rounded-lg border p-2.5 transition-[border-color,box-shadow,background-color] duration-150",
                 selected
@@ -158,7 +182,7 @@ export function Timeline() {
                   : conflicted
                     ? "border-alert/45 bg-surface shadow-card"
                     : "border-transparent bg-surface shadow-card hover:border-line-strong",
-                isDragging && "z-10 scale-[1.02] cursor-grabbing shadow-lift",
+                isDragging && "scale-[1.02] cursor-grabbing shadow-lift",
                 changedStopIds.has(stop.id) && "tm-change-flash",
               )}
             >
@@ -238,7 +262,6 @@ export function Timeline() {
 
               <StopThumb stop={stop} className="size-14 shrink-0" />
             </div>
-            {showIndicatorBelow && <DropLine />}
 
             {/* 交通段 */}
             {nextStop && (
@@ -521,6 +544,4 @@ function LegSummary({ leg, muted }: { leg: Leg; muted?: boolean }) {
   );
 }
 
-function DropLine() {
-  return <div className="mx-2 my-0.5 h-0.5 rounded-full bg-coral" />;
-}
+

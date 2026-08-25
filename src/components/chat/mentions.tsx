@@ -86,6 +86,35 @@ export function findMentionTrigger(
   return { start: at, query };
 }
 
+/**
+ * 由輸入文字推導有效提及:文字中出現「@+行程中真實對象名稱」就算(手動打完整名稱也算數)。
+ * 長 label 優先佔位,避免「A店」被「A店→B塔」(交通)的前綴誤判成另一筆。
+ */
+export function resolveMentions(
+  text: string,
+  candidates: MentionCandidate[],
+): Array<ChatMention & { at: number }> {
+  const sorted = [...candidates].sort((a, b) => b.label.length - a.label.length);
+  const taken: Array<[number, number]> = [];
+  const out: Array<ChatMention & { at: number }> = [];
+  for (const c of sorted) {
+    const needle = `@${c.label}`;
+    let idx = 0;
+    while (true) {
+      const at = text.indexOf(needle, idx);
+      if (at === -1) break;
+      const end = at + needle.length;
+      if (!taken.some(([s2, e2]) => at < e2 && end > s2)) {
+        taken.push([at, end]);
+        out.push({ kind: c.kind, id: c.id, label: c.label, at });
+        break; // 每個對象記一次
+      }
+      idx = end;
+    }
+  }
+  return out.sort((a, b) => a.at - b.at);
+}
+
 /** 輸入框上方的候選清單。 */
 export function MentionPicker({
   items,
