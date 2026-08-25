@@ -1,7 +1,7 @@
 "use client";
 
 // 行程列印版:A4 圖文排版,瀏覽器「另存為 PDF」即得完整行程檔。
-// 圖片全部載入後自動彈出列印對話框;也可手動再印。
+// 開啟後預覽內容,按右上「列印 / 存 PDF」再印(不自動彈列印對話框)。
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -29,7 +29,6 @@ export function PrintView({ tripId }: { tripId: string }) {
   const [doc, setDoc] = useState<Itinerary | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [googleReady, setGoogleReady] = useState(false);
-  const [autoPrinted, setAutoPrinted] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -51,24 +50,6 @@ export function PrintView({ tripId }: { tripId: string }) {
       }
     })();
   }, [tripId, router]);
-
-  // 圖片全載入後自動開列印對話框(只一次)
-  useEffect(() => {
-    if (!doc || autoPrinted) return;
-    let cancelled = false;
-    const t = setTimeout(async () => {
-      const imgs = [...document.querySelectorAll("img")];
-      await Promise.allSettled(imgs.map((img) => img.decode().catch(() => {})));
-      if (!cancelled) {
-        setAutoPrinted(true);
-        window.print();
-      }
-    }, 600);
-    return () => {
-      cancelled = true;
-      clearTimeout(t);
-    };
-  }, [doc, autoPrinted]);
 
   if (!doc) {
     return (
