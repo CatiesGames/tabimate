@@ -434,7 +434,14 @@ export async function directions(args: {
     `dir|${JSON.stringify(toWaypoint(args.from))}|${JSON.stringify(toWaypoint(args.to))}|${travelMode}|${departIso ?? ""}`,
   );
   const hit = cacheGet("g_directions_cache", "key", cacheKey);
-  if (hit) return { alternatives: JSON.parse(hit.payload), cache: "HIT" };
+  if (hit) {
+    const cached = JSON.parse(hit.payload) as RouteAlternative[];
+    return {
+      alternatives: cached,
+      cache: "HIT",
+      note: cached.length === 0 && travelMode === "TRANSIT" ? "Google API 不提供此區域的大眾運輸路線資料(日本等地的授權限制,Google 地圖 App 有但 API 沒有)。班次請改用網路查詢,或改查步行/開車時間。" : undefined,
+    };
+  }
 
   chargeUsage("routes");
   const body: Record<string, unknown> = {
@@ -537,22 +544,20 @@ export async function directions(args: {
   });
 
   const isTransit = travelMode === "TRANSIT";
-  // 空結果不進快取:日本等地區 Google API 不提供 transit 資料(授權限制),
-  // 快取空陣列會讓之後的查詢永遠拿不到說明。
-  if (alternatives.length > 0) {
-    db.run(
-      "INSERT OR REPLACE INTO g_directions_cache (key, payload, fetched_at, expires_at) VALUES (?,?,?,?)",
-      [
-        cacheKey,
-        JSON.stringify(alternatives),
-        now(),
-        now() +
-          (isTransit
-            ? ttlMs("cache_ttl_directions_transit_hours", "hours", 6)
-            : ttlMs("cache_ttl_directions_other_days", "days", 7)),
-      ],
-    );
-  }
+  // 空結果也快取(日本等地 transit 永遠空,不快取會每次重打白燒額度);
+  // 快取命中時 note 由空陣列動態補上,說明不會消失。
+  db.run(
+    "INSERT OR REPLACE INTO g_directions_cache (key, payload, fetched_at, expires_at) VALUES (?,?,?,?)",
+    [
+      cacheKey,
+      JSON.stringify(alternatives),
+      now(),
+      now() +
+        (isTransit
+          ? ttlMs("cache_ttl_directions_transit_hours", "hours", 6)
+          : ttlMs("cache_ttl_directions_other_days", "days", 7)),
+    ],
+  );
   return {
     alternatives,
     cache: "MISS",

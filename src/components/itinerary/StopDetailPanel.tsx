@@ -59,32 +59,29 @@ export function StopDetailPanel() {
 
   return (
     <section className="tm-pop-in tm-scroll flex max-h-[46%] flex-col overflow-y-auto rounded-xl border border-line bg-surface shadow-lift">
-      {/* 照片列(點開燈箱看大圖與全部照片) */}
+      {/* 照片:一個地點一張(照片額度以「每次抓圖」計費),點開看大圖 */}
       {googleReady && (stop.place?.photoRefs?.length ?? 0) > 0 && (
-        <div className="tm-scroll flex gap-1.5 overflow-x-auto p-2 pb-0">
-          {stop.place!.photoRefs!.map((ref, i) => (
-            <button
-              key={ref}
-              aria-label={`看大圖 ${i + 1}`}
-              onClick={() => setLightboxIndex(i)}
-              className="tm-focus group/photo relative shrink-0 overflow-hidden rounded-md"
-            >
-              <img
-                src={`/api/google/photo?ref=${encodeURIComponent(ref)}&w=400`}
-                alt={stop.name}
-                loading="lazy"
-                className="h-28 w-40 object-cover transition-transform duration-200 group-hover/photo:scale-105 first:w-44"
-              />
-              <span className="absolute inset-0 bg-ink/0 transition-colors group-hover/photo:bg-ink/15" />
-            </button>
-          ))}
+        <div className="p-2 pb-0">
+          <button
+            aria-label="看大圖"
+            onClick={() => setLightboxIndex(0)}
+            className="tm-focus group/photo relative block w-full overflow-hidden rounded-md"
+          >
+            <img
+              src={`/api/google/photo?ref=${encodeURIComponent(stop.place!.photoRefs![0])}&w=400`}
+              alt={stop.name}
+              loading="lazy"
+              className="h-32 w-full object-cover transition-transform duration-200 group-hover/photo:scale-[1.03]"
+            />
+            <span className="absolute inset-0 bg-ink/0 transition-colors group-hover/photo:bg-ink/15" />
+          </button>
         </div>
       )}
       {lightboxIndex !== null && stop.place?.photoRefs && (
         <PhotoLightbox
-          photoRefs={stop.place.photoRefs}
+          photoRefs={stop.place.photoRefs.slice(0, 1)}
           name={stop.name}
-          initialIndex={lightboxIndex}
+          initialIndex={0}
           onClose={() => setLightboxIndex(null)}
         />
       )}
