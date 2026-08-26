@@ -158,6 +158,84 @@ export function Timeline() {
     </LegEditor>
   );
 
+  // 住宿頭尾交通(存在 day 上)也走統一間隙模式:pills → 交通卡 → pills
+  const carryLegZone = (
+    edge: "top" | "bottom",
+    carry: NonNullable<ReturnType<typeof carryOverLodging>>,
+    day: Day,
+    adjacentStop2: Stop | null,
+  ) => {
+    const isTop = edge === "top";
+    const carryLeg = isTop ? day.lodgingMorningLeg : day.lodgingEveningLeg;
+    const legField = isTop ? "lodgingMorningLeg" : "lodgingEveningLeg";
+    const keyBase = isTop ? "head" : "tail";
+    const insertPos = isTop ? 0 : undefined;
+    const departValue = carry.isCheckoutDay
+      ? isOvernightLodging(carry.stop)
+        ? carry.stop.endTime
+        : null
+      : day.lodgingDepartTime;
+    const fakeLeg: Leg | null = carryLeg
+      ? {
+          id: `carry-${day.id}-${edge}`,
+          tripId: day.tripId,
+          fromStopId: "",
+          toStopId: "",
+          distanceM: null,
+          needsReview: false,
+          updatedAt: 0,
+          ...carryLeg,
+        }
+      : null;
+    const saveLeg = (p: CarryLeg | null) =>
+      editOps(
+        [{ op: "update_day", dayId: day.id, patch: { [legField]: p } }],
+        p
+          ? isTop
+            ? `調整 ${carry.stop.name} → ${adjacentStop2?.name ?? "首個行程"} 交通`
+            : `調整 ${adjacentStop2?.name ?? "最後行程"} → ${carry.stop.name} 交通`
+          : "清除住宿交通",
+      );
+    const hotelAsFrom: Stop = { ...carry.stop, startTime: null, endTime: departValue };
+    const hotelAsTo: Stop = { ...carry.stop, startTime: day.lodgingReturnTime, endTime: null };
+    const pill = adjacentStop2 ? (
+      <LegEditor
+        stop={isTop ? hotelAsFrom : adjacentStop2}
+        nextStop={isTop ? adjacentStop2 : hotelAsTo}
+        leg={fakeLeg}
+        saveOverride={saveLeg}
+        removeOverride={() => saveLeg(null)}
+      >
+        <button className="tm-focus flex shrink-0 items-center gap-1 rounded-full border border-dashed border-line-strong px-3 py-1.5 text-xs text-ink-soft transition-[color,border-color,background-color] hover:border-ocean hover:bg-ocean-wash hover:text-ocean-deep">
+          <Plus weight="bold" className="size-3.5" />
+          安排交通
+        </button>
+      </LegEditor>
+    ) : null;
+    if (!fakeLeg || !adjacentStop2) return renderGap(keyBase, insertPos, pill);
+    return (
+      <>
+        {renderGap(`${keyBase}-a`, insertPos, pill)}
+        <div className="flex pl-[1.35rem]">
+          <div className="flex min-w-0 flex-1 items-center border-l-2 border-dotted border-line-strong py-0.5 pl-4">
+            <LegEditor
+              stop={isTop ? hotelAsFrom : adjacentStop2}
+              nextStop={isTop ? adjacentStop2 : hotelAsTo}
+              leg={fakeLeg}
+              saveOverride={saveLeg}
+              removeOverride={() => saveLeg(null)}
+            >
+              <button className="tm-focus flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-line bg-surface px-3 py-2 text-left text-xs text-ink-soft shadow-card transition-[border-color,box-shadow] hover:border-ocean/40 hover:shadow-lift">
+                <LegSummary leg={fakeLeg} />
+              </button>
+            </LegEditor>
+          </div>
+        </div>
+        {renderGap(`${keyBase}-b`, insertPos, pill)}
+      </>
+    );
+  };
+
   // 住宿主卡(入住日第一張 lodging):主卡不在末位時,結尾自動出現「今晚回這裡住」錨列
   const primaryStop = primaryLodgingOf(doc.days, doc.stops, activeDayId);
   const checkinMidday =
@@ -167,27 +245,10 @@ export function Timeline() {
     <div ref={listRef} className="flex flex-col">
       {/* 續住列:固定在頭尾 — 早上從這出發(頭);中間天晚上回來續住(尾);退房日只有頭 */}
       {carryLodging && activeDay && (
-        <CarryLodgingRow
-          carry={carryLodging}
-          edge="top"
-          day={activeDay}
-          adjacentStop={stops[0] ?? null}
-          insertPill={
-            <button
-              aria-label="在此插入行程"
-              onClick={() => setGapAdd(gapAdd === "head" ? null : "head")}
-              className="tm-focus flex shrink-0 items-center gap-1 rounded-full border border-dashed border-line-strong px-3 py-1.5 text-xs text-ink-soft transition-[color,border-color,background-color] hover:border-coral hover:bg-coral-wash hover:text-coral-deep"
-            >
-              <Plus weight="bold" className="size-3.5" />
-              新增地點
-            </button>
-          }
-        />
-      )}
-      {gapAdd === "head" && (
-        <div className="mb-2 pl-[1.35rem]">
-          <AddStop dayId={activeDayId} position={0} defaultOpen onIdle={() => setGapAdd(null)} />
-        </div>
+        <>
+          <CarryLodgingRow carry={carryLodging} edge="top" day={activeDay} />
+          {carryLegZone("top", carryLodging, activeDay, stops[0] ?? null)}
+        </>
       )}
       {stops.length === 0 && (
         <p className="rounded-lg border border-dashed border-line-strong px-4 py-6 text-center text-[13px] text-ink-faint">
@@ -374,25 +435,22 @@ export function Timeline() {
         );
       })}
 
-      {renderGap("end", undefined, null)}
-
       {/* 一天的結尾是回住宿:續住中間天,或入住日先放了行李(住宿不在末位) */}
-      {activeDay &&
-        (carryLodging && !carryLodging.isCheckoutDay ? (
-          <CarryLodgingRow
-            carry={carryLodging}
-            edge="bottom"
-            day={activeDay}
-            adjacentStop={stops[stops.length - 1] ?? null}
-          />
-        ) : checkinMidday ? (
-          <CarryLodgingRow
-            carry={{ stop: checkinMidday, isCheckoutDay: false }}
-            edge="bottom"
-            day={activeDay}
-            adjacentStop={stops[stops.length - 1] ?? null}
-          />
-        ) : null)}
+      {(() => {
+        const bottomCarry =
+          carryLodging && !carryLodging.isCheckoutDay
+            ? carryLodging
+            : checkinMidday
+              ? { stop: checkinMidday, isCheckoutDay: false }
+              : null;
+        if (!activeDay || !bottomCarry) return renderGap("end", undefined, null);
+        return (
+          <>
+            {carryLegZone("bottom", bottomCarry, activeDay, stops[stops.length - 1] ?? null)}
+            <CarryLodgingRow carry={bottomCarry} edge="bottom" day={activeDay} />
+          </>
+        );
+      })()}
     </div>
   );
 }
@@ -406,22 +464,15 @@ function CarryLodgingRow({
   carry,
   edge,
   day,
-  adjacentStop,
-  insertPill,
 }: {
   carry: NonNullable<ReturnType<typeof carryOverLodging>>;
   edge: "top" | "bottom";
   day: Day;
-  adjacentStop: Stop | null;
-  /** 「+新增地點」膠囊(頭錨列間隙用,由 Timeline 傳入)。 */
-  insertPill?: React.ReactNode;
 }) {
   const { editOps } = useTrip();
   const { setSelectedStop } = useSelection();
   const isTop = edge === "top";
   const label = !isTop ? "今晚回這裡住" : carry.isCheckoutDay ? "昨晚住這,今天退房" : "昨晚住這";
-  const carryLeg = isTop ? day.lodgingMorningLeg : day.lodgingEveningLeg;
-  const legField = isTop ? "lodgingMorningLeg" : "lodgingEveningLeg";
   // 早上離開住宿的時間:中間天存 day.lodgingDepartTime;退房日就是住宿的退房時間
   const departValue = carry.isCheckoutDay
     ? isOvernightLodging(carry.stop)
@@ -429,60 +480,8 @@ function CarryLodgingRow({
       : null
     : day.lodgingDepartTime;
 
-  const fakeLeg: Leg | null = carryLeg
-    ? {
-        id: `carry-${day.id}-${edge}`,
-        tripId: day.tripId,
-        fromStopId: "",
-        toStopId: "",
-        distanceM: null,
-        needsReview: false,
-        updatedAt: 0,
-        ...carryLeg,
-      }
-    : null;
-  const saveLeg = (p: CarryLeg | null) =>
-    editOps(
-      [{ op: "update_day", dayId: day.id, patch: { [legField]: p } }],
-      p
-        ? isTop
-          ? `調整 ${carry.stop.name} → ${adjacentStop?.name ?? "首個行程"} 交通`
-          : `調整 ${adjacentStop?.name ?? "最後行程"} → ${carry.stop.name} 交通`
-        : "清除住宿交通",
-    );
-  // LegEditor 的兩端:交通對象是真實 stop,住宿端用當天時間構造(帶入預設用)
-  const hotelAsFrom: Stop = { ...carry.stop, startTime: null, endTime: departValue };
-  const hotelAsTo: Stop = { ...carry.stop, startTime: day.lodgingReturnTime, endTime: null };
-
-  const legChip = adjacentStop && (
-    <div className={cn("flex pl-[1.35rem]", isTop ? "pb-2" : "pt-2")}>
-      <div className="flex min-w-0 flex-1 items-center gap-1.5 border-l-2 border-dotted border-line-strong py-0.5 pl-4">
-        <LegEditor
-          stop={isTop ? hotelAsFrom : adjacentStop}
-          nextStop={isTop ? adjacentStop : hotelAsTo}
-          leg={fakeLeg}
-          saveOverride={saveLeg}
-          removeOverride={() => saveLeg(null)}
-        >
-          {fakeLeg ? (
-            <button className="tm-focus flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-line bg-surface px-3 py-2 text-left text-xs text-ink-soft shadow-card transition-[border-color,box-shadow] hover:border-ocean/40 hover:shadow-lift">
-              <LegSummary leg={fakeLeg} />
-            </button>
-          ) : (
-            <button className="tm-focus flex items-center gap-1 rounded-full border border-dashed border-line-strong px-3 py-1.5 text-xs text-ink-soft transition-[color,border-color,background-color] hover:border-ocean hover:bg-ocean-wash hover:text-ocean-deep">
-              <Plus weight="bold" className="size-3.5" />
-              {isTop ? "安排住宿出發交通" : "安排回住宿交通"}
-            </button>
-          )}
-        </LegEditor>
-        {insertPill}
-      </div>
-    </div>
-  );
-
   return (
     <>
-      {!isTop && legChip}
       <div
         className={cn(
           "flex items-center gap-2 overflow-hidden rounded-lg border border-dashed border-cat-lodging/45 bg-cat-lodging/5 px-2.5 py-2 whitespace-nowrap",
@@ -556,7 +555,6 @@ function CarryLodgingRow({
         )}
         <StopThumb stop={carry.stop} className="size-10 shrink-0" />
       </div>
-      {isTop && legChip}
     </>
   );
 }
