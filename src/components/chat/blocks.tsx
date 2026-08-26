@@ -218,14 +218,16 @@ export function ToolStatusBlock({
     >
       <div className="flex items-center gap-2">
         {block.state === "running" ? (
-          <Spinner className="size-3.5" />
+          <Spinner className="size-3.5 shrink-0" />
         ) : block.state === "done" ? (
-          <Check weight="bold" className="size-3.5 text-leaf" />
+          <Check weight="bold" className="size-3.5 shrink-0 text-leaf" />
         ) : (
-          <Warning weight="fill" className="size-3.5" />
+          <Warning weight="fill" className="size-3.5 shrink-0" />
         )}
+        {/* 長網址等單行呈現,超出寬度可左右滑(不顯示捲軸),不撐破圓角框 */}
         <span
           className={cn(
+            "tm-noscrollbar min-w-0 flex-1 overflow-x-auto whitespace-nowrap",
             block.state === "running" &&
               "bg-[linear-gradient(90deg,currentColor_40%,rgba(14,155,164,0.35)_50%,currentColor_60%)] bg-[length:200%_100%] bg-clip-text animate-[tm-shimmer_1.8s_linear_infinite]",
           )}
