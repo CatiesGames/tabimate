@@ -364,7 +364,7 @@ function CarryRowPrint({
         <img
           src={`/api/google/photo?ref=${encodeURIComponent(photo)}&w=400`}
           alt={carry.stop.name}
-          className="h-12 w-20 shrink-0 rounded-md object-cover"
+          className="h-20 w-32 shrink-0 rounded-lg object-cover"
           style={{ printColorAdjust: "exact" }}
         />
       )}
