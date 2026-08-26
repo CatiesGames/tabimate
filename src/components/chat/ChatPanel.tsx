@@ -289,7 +289,8 @@ function MessageList({ messages }: { messages: ChatMessage[] }) {
           {floatingDate}
         </span>
       )}
-      {!stickBottom && unseen > 0 && (
+      {/* 上滑離開底部就出現;期間有新訊息附數量 */}
+      {!stickBottom && (
         <button
           onClick={() => {
             setStickBottom(true);
@@ -299,6 +300,11 @@ function MessageList({ messages }: { messages: ChatMessage[] }) {
         >
           <CaretDoubleDown className="size-3.5" />
           回到最新
+          {unseen > 0 && (
+            <span className="tm-num rounded-full bg-coral px-1.5 py-px text-[10px] leading-4 font-semibold">
+              {unseen > 99 ? "99+" : unseen}
+            </span>
+          )}
         </button>
       )}
     </div>
