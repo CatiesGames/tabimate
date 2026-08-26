@@ -534,9 +534,7 @@ function AgentMessage({ message }: { message: ChatMessage }) {
               <MiniMarkdown text={maskUnfinishedImage(liveText)} />
             </div>
           )}
-          {isLive && !liveText && message.blocks.length === 0 && (
-            <PulseDots className="py-1" />
-          )}
+          {isLive && <AgentActivityLine blocks={message.blocks} startedAt={message.createdAt} />}
           {message.status === "error" && message.error && (
             <p className="rounded-md bg-alert-wash px-2.5 py-1.5 text-xs text-alert">
               發生錯誤:{message.error.split("\n")[0]}
@@ -545,6 +543,50 @@ function AgentMessage({ message }: { message: ChatMessage }) {
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * 塔比活動列:訊息進行中固定顯示在氣泡底部(✻ + 正在做什麼 + 經過時間),
+ * 長時間查資料/思考時使用者也看得出它還在動。
+ */
+function AgentActivityLine({
+  blocks,
+  startedAt,
+}: {
+  blocks: ChatBlock[];
+  startedAt: number;
+}) {
+  const { store } = useChat();
+  useSyncExternalStore(store.subscribeStream, store.streamVersion, store.streamVersion);
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setTick((x) => x + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const phase = store.agentPhase;
+  if (phase === "idle") return null;
+  const runningTool = [...blocks]
+    .reverse()
+    .find((b) => b.kind === "tool_status" && b.state === "running");
+  const label =
+    phase === "stopping"
+      ? "停止中"
+      : runningTool && runningTool.kind === "tool_status"
+        ? runningTool.label
+        : phase === "thinking"
+          ? "思考中"
+          : "回覆中";
+  const secs = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
+  const time = secs >= 60 ? `${Math.floor(secs / 60)}m ${secs % 60}s` : `${secs}s`;
+  return (
+    <p className="mt-0.5 flex items-center gap-1.5 text-[12px] text-ocean-deep">
+      <span className="animate-[tm-star-pulse_1.6s_ease-in-out_infinite] font-semibold">✻</span>
+      <span className="min-w-0 truncate bg-[linear-gradient(90deg,currentColor_40%,rgba(14,155,164,0.35)_50%,currentColor_60%)] bg-[length:200%_100%] bg-clip-text animate-[tm-shimmer_1.8s_linear_infinite]">
+        {label}…
+      </span>
+      <span className="tm-num shrink-0 text-ink-faint">({time})</span>
+    </p>
   );
 }
 

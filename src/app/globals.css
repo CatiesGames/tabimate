@@ -120,6 +120,7 @@
   }
 }
 
+@keyframes tm-star-pulse { 0%, 100% { opacity: 0.35; transform: scale(0.9) rotate(0deg); } 50% { opacity: 1; transform: scale(1.15) rotate(90deg); } }
 @keyframes tm-shimmer {
   0% {
     background-position: -200% 0;
