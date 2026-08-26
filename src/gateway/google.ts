@@ -316,7 +316,7 @@ export async function staticMap(
   points: Array<{ lat: number; lng: number; n?: number }>,
   /** 續住日的住宿(當天起點;returnAtNight=晚上也回這裡住 → 路徑閉環)。 */
   lodging?: { lat: number; lng: number; returnAtNight: boolean; skipMarker?: boolean },
-): Promise<{ path: string; cache: "HIT" | "MISS" }> {
+): Promise<{ path: string; cache: "HIT" | "MISS"; etag: string }> {
   const pts = points.slice(0, 40);
   const lodgePart = lodging
     ? `|L${lodging.lat.toFixed(5)},${lodging.lng.toFixed(5)},${lodging.returnAtNight ? 1 : 0},${lodging.skipMarker ? 1 : 0}`
@@ -326,7 +326,7 @@ export async function staticMap(
     .query("SELECT path, expires_at FROM g_photo_cache WHERE key = ?")
     .get(k) as { path: string; expires_at: number } | null;
   if (row && row.expires_at > now() && (await Bun.file(row.path).exists())) {
-    return { path: row.path, cache: "HIT" };
+    return { path: row.path, cache: "HIT", etag: k };
   }
 
   chargeUsage("staticmap");
@@ -367,7 +367,7 @@ export async function staticMap(
     "INSERT OR REPLACE INTO g_photo_cache (key, place_id, path, fetched_at, expires_at) VALUES (?,?,?,?,?)",
     [k, null, path, now(), now() + ttlMs("cache_ttl_photos_days", "days", 30)],
   );
-  return { path, cache: "MISS" };
+  return { path, cache: "MISS", etag: k };
 }
 
 // ---- Routes API(computeRoutes,含 transit alternatives)----

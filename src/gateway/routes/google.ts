@@ -124,11 +124,21 @@ export function registerGoogleRoutes() {
         : midday && midday.lat != null && midday.lng != null
           ? { lat: midday.lat, lng: midday.lng, returnAtNight: true, skipMarker: true }
           : undefined;
-    const { path, cache } = await guard(() => staticMap(pts, lodging));
+    const { path, cache, etag } = await guard(() => staticMap(pts, lodging));
+    // ETag=內容雜湊:行程一改(加點/移動/座標變)圖就換;沒變則 304。
+    // 不能用 max-age:URL 只有 day id,長快取會讓新增地點後 PDF 地圖不更新。
+    const tag = `"${etag}"`;
+    if (ctx.req.headers.get("if-none-match") === tag) {
+      return new Response(null, {
+        status: 304,
+        headers: { etag: tag, "cache-control": "private, no-cache" },
+      });
+    }
     return new Response(Bun.file(path), {
       headers: {
         "content-type": "image/png",
-        "cache-control": "private, max-age=86400",
+        etag: tag,
+        "cache-control": "private, no-cache",
         "X-Cache": cache,
       },
     });
