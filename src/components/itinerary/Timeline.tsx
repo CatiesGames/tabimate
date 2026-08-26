@@ -36,7 +36,6 @@ export function Timeline() {
 
   const listRef = useRef<HTMLDivElement>(null);
   const suppressClick = useRef(false);
-  const [gapAdd, setGapAdd] = useState<string | null>(null);
   const [dragging, setDragging] = useState<{
     stopId: string;
     fromIndex: number;
@@ -123,31 +122,12 @@ export function Timeline() {
   const activeDay = doc.days.find((d) => d.id === activeDayId) ?? null;
   // 統一間隙列:每個地點/交通之間都是「+安排交通 +新增地點」;點新增就地展開插入
   const renderGap = (gapKey: string, insertPos: number | undefined, legTrigger: React.ReactNode) => (
-    <>
-      <div className="flex py-1 pl-[1.35rem]">
-        <div className="flex min-w-0 flex-1 items-center gap-1.5 border-l-2 border-dotted border-line-strong py-0.5 pl-4">
-          {legTrigger}
-          <button
-            aria-label="在此插入行程"
-            onClick={() => setGapAdd(gapAdd === gapKey ? null : gapKey)}
-            className="tm-focus flex shrink-0 items-center gap-1 rounded-full border border-dashed border-line-strong px-3 py-1.5 text-xs text-ink-soft transition-[color,border-color,background-color] hover:border-coral hover:bg-coral-wash hover:text-coral-deep"
-          >
-            <Plus weight="bold" className="size-3.5" />
-            新增地點
-          </button>
-        </div>
+    <div key={gapKey} className="flex py-1 pl-[1.35rem]">
+      <div className="flex min-w-0 flex-1 items-center gap-1.5 border-l-2 border-dotted border-line-strong py-0.5 pl-4">
+        {legTrigger}
+        <AddStop dayId={activeDayId} position={insertPos} />
       </div>
-      {gapAdd === gapKey && (
-        <div className="mb-2 pl-[1.35rem]">
-          <AddStop
-            dayId={activeDayId}
-            position={insertPos}
-            defaultOpen
-            onIdle={() => setGapAdd(null)}
-          />
-        </div>
-      )}
-    </>
+    </div>
   );
   const transitPill = (stop2: Stop, next2: Stop, leg2: Leg | null) => (
     <LegEditor stop={stop2} nextStop={next2} leg={leg2}>

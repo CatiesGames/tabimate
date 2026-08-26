@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import * as Popover from "@radix-ui/react-popover";
 import { Bed, MagnifyingGlass, MapPin, Plus } from "@phosphor-icons/react";
 
 import { apiFetch } from "@/lib/api";
@@ -41,23 +42,13 @@ type Mode = "idle" | "search" | "manual";
 export function AddStop({
   dayId,
   position,
-  defaultOpen,
-  onIdle,
 }: {
   dayId: string;
   position?: number;
-  /** 直接以搜尋模式展開(行程間隙插入用)。 */
-  defaultOpen?: boolean;
-  /** 收合回 idle 時通知(間隙插入用來卸載)。 */
-  onIdle?: () => void;
 }) {
   const { googleReady } = useSession();
   const { doc, editOps } = useTrip();
-  const [mode, setModeRaw] = useState<Mode>(defaultOpen ? "search" : "idle");
-  const setMode = (m: Mode) => {
-    setModeRaw(m);
-    if (m === "idle") onIdle?.();
-  };
+  const [mode, setMode] = useState<Mode>("idle");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<AcResult[]>([]);
   const [highlight, setHighlight] = useState(0);
@@ -65,30 +56,10 @@ export function AddStop({
   const [adding, setAdding] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
-  const hostRef = useRef<HTMLDivElement>(null);
-  // 展開呈現:桌面=懸浮於觸發位置(不推擠版面);手機=底部抽屜
+  // 桌面=Radix Popover 懸浮(與安排交通同機制);手機=底部抽屜
   const [narrow, setNarrow] = useState(false);
-  const [anchor, setAnchor] = useState<{ top: number; left: number; width: number } | null>(null);
-  const measureAnchor = () => {
-    setNarrow(window.innerWidth < 768);
-    const r = hostRef.current?.getBoundingClientRect();
-    if (r) {
-      setAnchor({
-        top: Math.min(r.top, Math.max(80, window.innerHeight - 420)),
-        left: r.left,
-        width: Math.max(r.width, 300),
-      });
-    }
-  };
 
-  // 間隙插入以搜尋模式直接展開:量錨點 + 自動聚焦輸入框
-  useEffect(() => {
-    if (defaultOpen) {
-      measureAnchor();
-      setTimeout(() => inputRef.current?.focus(), 30);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+
 
   // 以行程中已有座標的點做搜尋偏好中心
   const near = doc?.stops.find((s) => s.lat != null && s.lng != null);
@@ -188,15 +159,7 @@ export function AddStop({
     return () => clearTimeout(t);
   }, [query, mode, search]);
 
-  // 點外面收合
-  useEffect(() => {
-    if (mode === "idle") return;
-    const onDown = (e: MouseEvent) => {
-      if (!boxRef.current?.contains(e.target as Node)) setMode("idle");
-    };
-    window.addEventListener("mousedown", onDown);
-    return () => window.removeEventListener("mousedown", onDown);
-  }, [mode]);
+
 
   const addFromPlace = async (r: AcResult) => {
     setAdding(r.placeId);
@@ -263,27 +226,9 @@ export function AddStop({
     setMode("idle");
   };
 
-  if (mode === "idle") {
-    return (
-      <div ref={hostRef}>
-        <button
-          onClick={() => {
-            measureAnchor();
-            setMode("search");
-            setTimeout(() => inputRef.current?.focus(), 30);
-          }}
-          className="tm-focus flex w-full select-none items-center justify-center gap-1.5 rounded-lg border border-dashed border-line-strong py-2.5 text-sm text-ink-faint transition-colors hover:border-coral hover:bg-coral-wash/40 hover:text-coral-deep"
-        >
-          <Plus weight="bold" className="size-4" />
-          新增地點
-        </button>
-      </div>
-    );
-  }
-
-  const panelBody =
+  const body =
     mode === "manual" ? (
-      <div ref={boxRef} className="rounded-lg border border-line bg-surface shadow-pop">
+      <div ref={boxRef} className="rounded-xl border border-line bg-surface shadow-pop">
         <ManualForm
           dayId={dayId}
           position={position}
@@ -295,43 +240,6 @@ export function AddStop({
         />
       </div>
     ) : (
-      searchBody()
-    );
-
-  return (
-    <div ref={hostRef}>
-      {createPortal(
-        narrow ? (
-          <div className="fixed inset-0 z-40">
-            <div
-              className="absolute inset-0 bg-ink/25 backdrop-blur-[1px]"
-              onMouseDown={() => setMode("idle")}
-            />
-            <div className="tm-pop-in absolute inset-x-2 bottom-[calc(3.8rem+env(safe-area-inset-bottom))] max-h-[70dvh] overflow-y-auto">
-              {panelBody}
-            </div>
-          </div>
-        ) : (
-          <div
-            style={{
-              position: "fixed",
-              top: anchor?.top ?? 120,
-              left: anchor?.left ?? 0,
-              width: anchor?.width ?? 320,
-              zIndex: 40,
-            }}
-            className="tm-pop-in max-h-[min(70dvh,480px)] overflow-y-auto"
-          >
-            {panelBody}
-          </div>
-        ),
-        document.body,
-      )}
-    </div>
-  );
-
-  function searchBody() {
-    return (
     <div ref={boxRef} className="tm-pop-in rounded-lg border border-line bg-surface p-2 shadow-lift">
       <div className="relative">
         <MagnifyingGlass className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-ink-faint" />
@@ -424,8 +332,58 @@ export function AddStop({
         {query.trim() ? `手動新增「${query.trim()}」` : "手動新增(自填名稱)"}
       </button>
     </div>
+    );
+
+  const openChange = (o: boolean) => {
+    if (o) {
+      setNarrow(window.innerWidth < 768);
+      setMode("search");
+      setTimeout(() => inputRef.current?.focus(), 30);
+    } else {
+      setMode("idle");
+      setQuery("");
+      setResults([]);
+    }
+  };
+
+  return (
+    <Popover.Root open={mode !== "idle"} onOpenChange={openChange}>
+      <Popover.Trigger asChild>
+        <button className="tm-focus flex shrink-0 items-center gap-1 rounded-full border border-dashed border-line-strong px-3 py-1.5 text-xs text-ink-soft transition-[color,border-color,background-color] hover:border-coral hover:bg-coral-wash hover:text-coral-deep data-[state=open]:border-coral data-[state=open]:text-coral-deep">
+          <Plus weight="bold" className="size-3.5" />
+          新增地點
+        </button>
+      </Popover.Trigger>
+      {!narrow && mode !== "idle" && (
+        <Popover.Portal>
+          <Popover.Content
+            side="bottom"
+            align="start"
+            sideOffset={6}
+            collisionPadding={10}
+            className="tm-pop-in z-40 w-[min(340px,calc(100vw-20px))]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {body}
+          </Popover.Content>
+        </Popover.Portal>
+      )}
+      {narrow &&
+        mode !== "idle" &&
+        createPortal(
+          <div className="fixed inset-0 z-40">
+            <div
+              className="absolute inset-0 bg-ink/25 backdrop-blur-[1px]"
+              onMouseDown={() => openChange(false)}
+            />
+            <div className="tm-pop-in absolute inset-x-2 bottom-[calc(3.8rem+env(safe-area-inset-bottom))] max-h-[70dvh] overflow-y-auto">
+              {body}
+            </div>
+          </div>,
+          document.body,
+        )}
+    </Popover.Root>
   );
-  }
 }
 
 function ManualForm({
