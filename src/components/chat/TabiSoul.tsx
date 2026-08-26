@@ -7,6 +7,7 @@ import { Brain, PencilSimple, Plus, Robot, Sparkle, Trash, X } from "@phosphor-i
 
 import { apiFetch } from "@/lib/api";
 import { cn } from "@/lib/cn";
+import { AgentFace } from "./AgentFace";
 import { useChat, useSession } from "@/lib/workspace/WorkspaceProvider";
 import type { AgentMemory } from "@/shared/types";
 import { Button, Input, Spinner } from "@/components/ui";
@@ -53,6 +54,10 @@ export function TabiSoulDialog({ open, onClose }: { open: boolean; onClose: () =
 
         {(agent.identity.name || agent.identity.avatarVersion) && (
           <div className="mx-4 mt-3 flex items-center gap-2.5 rounded-lg bg-ocean-wash/60 px-3 py-2">
+            <AgentFace
+              className="flex size-10 items-center justify-center rounded-full"
+              iconClassName="size-5"
+            />
             <span className="min-w-0 flex-1 text-[13px] text-ink">
               目前變身為<span className="font-semibold">{agent.identity.name || "(自訂頭貼)"}</span>
               {agent.identity.rolePersona && (

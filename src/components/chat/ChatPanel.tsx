@@ -12,7 +12,6 @@ import { CompassRose, ArrowCounterClockwise,
   CaretDoubleDown,
   ImageSquare,
   PaperPlaneRight,
-  Robot,
   Stop as StopIcon,
   X } from "@phosphor-icons/react";
 
@@ -21,6 +20,7 @@ import { cn } from "@/lib/cn";
 import { chatDateLabel, clockLabel } from "@/lib/dates";
 import type { ChatMention, ChatMessage } from "@/shared/types";
 import { useChat, useSelection, useSession, useTrip } from "@/lib/workspace/WorkspaceProvider";
+import { AgentFace, useAgentName } from "./AgentFace";
 import { TabiSoulDialog } from "./TabiSoul";
 import { Avatar, ConfirmDialog, Hint, PulseDots, Spinner, Tag, ZoomableImage } from "@/components/ui";
 import { BlockRenderer, maskUnfinishedImage, MiniMarkdown, ToolStatusBlock } from "./blocks";
@@ -321,32 +321,6 @@ function EmptyChat() {
       </p>
     </div>
   );
-}
-
-/** 塔比頭像:變身後顯示自訂頭貼,否則預設機器人。 */
-function AgentFace({ className, iconClassName }: { className: string; iconClassName: string }) {
-  const { agent } = useChat();
-  const { tripId } = useSession();
-  if (agent.identity.avatarVersion) {
-    return (
-      <img
-        src={`/api/trips/${tripId}/agent/avatar?v=${agent.identity.avatarVersion}`}
-        alt={agent.identity.name ?? "塔比"}
-        className={cn(className, "overflow-hidden object-cover")}
-      />
-    );
-  }
-  return (
-    <span className={cn(className, "bg-ocean text-white")}>
-      <Robot weight="fill" className={iconClassName} />
-    </span>
-  );
-}
-
-/** 塔比目前的名字(變身後為自訂名稱)。 */
-function useAgentName() {
-  const { agent } = useChat();
-  return agent.identity.name || "塔比";
 }
 
 const MessageRow = function MessageRow({ message }: { message: ChatMessage }) {
