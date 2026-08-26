@@ -72,12 +72,18 @@ export function BlockRenderer({
   }
 }
 
-/** 串流中把結尾「未閉合的圖片語法」遮成佔位,避免長 photo ref 原文在打字過程閃現。 */
-export function maskUnfinishedImage(text: string): string {
+/** 串流結尾是否有未閉合的圖片語法(塔比正在傳圖,活動列會轉成「準備旅遊相簿」)。 */
+export function hasUnfinishedImage(text: string): boolean {
   const at = text.lastIndexOf("![");
-  if (at === -1) return text;
-  if (/^!\[[^\]]*\]\([^)]*\)/.test(text.slice(at))) return text; // 已閉合,照常渲染
-  return `${text.slice(0, at)}(附圖…)`;
+  if (at === -1) return false;
+  return !/^!\[[^\]]*\]\([^)]*\)/.test(text.slice(at));
+}
+
+/** 串流中把結尾「未閉合的圖片語法」整段藏起,避免長 photo ref 原文在打字過程閃現;
+ *  傳圖狀態改由活動列呈現,不在正文留佔位文字。 */
+export function maskUnfinishedImage(text: string): string {
+  if (!hasUnfinishedImage(text)) return text;
+  return text.slice(0, text.lastIndexOf("![")).trimEnd();
 }
 
 // ---- 記憶確認卡:塔比想記住某事/調整個性,成員按「記住」才寫入 ----

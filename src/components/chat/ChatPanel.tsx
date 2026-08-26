@@ -23,7 +23,7 @@ import { useChat, useSelection, useSession, useTrip } from "@/lib/workspace/Work
 import { AgentFace, useAgentName } from "./AgentFace";
 import { TabiSoulDialog } from "./TabiSoul";
 import { Avatar, ConfirmDialog, Hint, PulseDots, Spinner, Tag, ZoomableImage } from "@/components/ui";
-import { BlockRenderer, maskUnfinishedImage, MiniMarkdown, ToolStatusBlock } from "./blocks";
+import { BlockRenderer, hasUnfinishedImage, maskUnfinishedImage, MiniMarkdown, ToolStatusBlock } from "./blocks";
 import {
   buildCandidates,
   filterCandidates,
@@ -586,7 +586,13 @@ function AgentMessage({ message }: { message: ChatMessage }) {
               <MiniMarkdown text={maskUnfinishedImage(liveText)} />
             </div>
           )}
-          {isLive && <AgentActivityLine blocks={message.blocks} startedAt={message.createdAt} />}
+          {isLive && (
+            <AgentActivityLine
+              blocks={message.blocks}
+              startedAt={message.createdAt}
+              preparingAlbum={hasUnfinishedImage(liveText)}
+            />
+          )}
           {message.status === "error" && message.error && (
             <p className="rounded-md bg-alert-wash px-2.5 py-1.5 text-xs text-alert">
               發生錯誤:{message.error.split("\n")[0]}
@@ -605,9 +611,12 @@ function AgentMessage({ message }: { message: ChatMessage }) {
 function AgentActivityLine({
   blocks,
   startedAt,
+  preparingAlbum,
 }: {
   blocks: ChatBlock[];
   startedAt: number;
+  /** 串流結尾是未閉合的圖片語法:塔比正在傳圖,顯示相簿狀態。 */
+  preparingAlbum?: boolean;
 }) {
   const { store } = useChat();
   useSyncExternalStore(store.subscribeStream, store.streamVersion, store.streamVersion);
@@ -624,19 +633,25 @@ function AgentActivityLine({
   const label =
     phase === "stopping"
       ? "收尾中"
-      : runningTool && runningTool.kind === "tool_status"
-        ? runningTool.label
-        : phase === "thinking"
-          ? "塔比翻著旅遊筆記"
-          : "整理回覆";
+      : preparingAlbum
+        ? "塔比準備分享旅遊相簿"
+        : runningTool && runningTool.kind === "tool_status"
+          ? runningTool.label
+          : phase === "thinking"
+            ? "塔比翻著旅遊筆記"
+            : "整理回覆";
   const secs = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
   const time = secs >= 60 ? `${Math.floor(secs / 60)} 分 ${secs % 60} 秒` : `${secs} 秒`;
   return (
     <div className="mt-1 inline-flex max-w-full items-center gap-1.5 self-start rounded-full bg-ocean-wash py-1 pr-2.5 pl-2 text-[12px] text-ocean-deep">
-      <CompassRose
-        weight="fill"
-        className="size-3.5 shrink-0 animate-[spin_3.5s_linear_infinite]"
-      />
+      {preparingAlbum && phase !== "stopping" ? (
+        <ImagesSquare weight="fill" className="size-3.5 shrink-0 animate-pulse" />
+      ) : (
+        <CompassRose
+          weight="fill"
+          className="size-3.5 shrink-0 animate-[spin_3.5s_linear_infinite]"
+        />
+      )}
       <span className="min-w-0 truncate">{label}</span>
       <PulseDots className="shrink-0 scale-75" />
       {secs >= 8 && (
