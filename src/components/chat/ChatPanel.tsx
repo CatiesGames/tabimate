@@ -8,15 +8,13 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import {
-  ArrowCounterClockwise,
+import { CompassRose, ArrowCounterClockwise,
   CaretDoubleDown,
   ImageSquare,
   PaperPlaneRight,
   Robot,
   Stop as StopIcon,
-  X,
-} from "@phosphor-icons/react";
+  X } from "@phosphor-icons/react";
 
 import { apiFetch } from "@/lib/api";
 import { cn } from "@/lib/cn";
@@ -547,8 +545,8 @@ function AgentMessage({ message }: { message: ChatMessage }) {
 }
 
 /**
- * 塔比活動列:訊息進行中固定顯示在氣泡底部(✻ + 正在做什麼 + 經過時間),
- * 長時間查資料/思考時使用者也看得出它還在動。
+ * 塔比活動列(晴空假期風格):訊息進行中固定顯示在氣泡底部 —
+ * ocean 膠囊 + 緩轉指南針 + 正在做什麼 + 呼吸小點;超過 8 秒才低調顯示經過時間。
  */
 function AgentActivityLine({
   blocks,
@@ -571,22 +569,26 @@ function AgentActivityLine({
     .find((b) => b.kind === "tool_status" && b.state === "running");
   const label =
     phase === "stopping"
-      ? "停止中"
+      ? "收尾中"
       : runningTool && runningTool.kind === "tool_status"
         ? runningTool.label
         : phase === "thinking"
-          ? "思考中"
-          : "回覆中";
+          ? "塔比翻著旅遊筆記"
+          : "整理回覆";
   const secs = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
-  const time = secs >= 60 ? `${Math.floor(secs / 60)}m ${secs % 60}s` : `${secs}s`;
+  const time = secs >= 60 ? `${Math.floor(secs / 60)} 分 ${secs % 60} 秒` : `${secs} 秒`;
   return (
-    <p className="mt-0.5 flex items-center gap-1.5 text-[12px] text-ocean-deep">
-      <span className="animate-[tm-star-pulse_1.6s_ease-in-out_infinite] font-semibold">✻</span>
-      <span className="min-w-0 truncate bg-[linear-gradient(90deg,currentColor_40%,rgba(14,155,164,0.35)_50%,currentColor_60%)] bg-[length:200%_100%] bg-clip-text animate-[tm-shimmer_1.8s_linear_infinite]">
-        {label}…
-      </span>
-      <span className="tm-num shrink-0 text-ink-faint">({time})</span>
-    </p>
+    <div className="mt-1 inline-flex max-w-full items-center gap-1.5 self-start rounded-full bg-ocean-wash py-1 pr-2.5 pl-2 text-[12px] text-ocean-deep">
+      <CompassRose
+        weight="fill"
+        className="size-3.5 shrink-0 animate-[spin_3.5s_linear_infinite]"
+      />
+      <span className="min-w-0 truncate">{label}</span>
+      <PulseDots className="shrink-0 scale-75" />
+      {secs >= 8 && (
+        <span className="tm-num shrink-0 text-ocean-deep/55 tm-pop-in">{time}</span>
+      )}
+    </div>
   );
 }
 
