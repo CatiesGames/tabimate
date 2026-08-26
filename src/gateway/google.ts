@@ -314,9 +314,14 @@ export async function placePhoto(
 
 export async function staticMap(
   points: Array<{ lat: number; lng: number }>,
+  /** 續住日的住宿(當天起點;returnAtNight=晚上也回這裡住 → 路徑閉環)。 */
+  lodging?: { lat: number; lng: number; returnAtNight: boolean },
 ): Promise<{ path: string; cache: "HIT" | "MISS" }> {
   const pts = points.slice(0, 40);
-  const k = hash(`staticmap|v1|${pts.map((p) => `${p.lat.toFixed(5)},${p.lng.toFixed(5)}`).join(";")}`);
+  const lodgePart = lodging
+    ? `|L${lodging.lat.toFixed(5)},${lodging.lng.toFixed(5)},${lodging.returnAtNight ? 1 : 0}`
+    : "";
+  const k = hash(`staticmap|v2|${pts.map((p) => `${p.lat.toFixed(5)},${p.lng.toFixed(5)}`).join(";")}${lodgePart}`);
   const row = db
     .query("SELECT path, expires_at FROM g_photo_cache WHERE key = ?")
     .get(k) as { path: string; expires_at: number } | null;
@@ -336,10 +341,17 @@ export async function staticMap(
     const label = i < 9 ? `|label:${i + 1}` : "";
     params.append("markers", `size:mid|color:0xFF5D47${label}|${pt.lat},${pt.lng}`);
   });
-  if (pts.length > 1) {
+  if (lodging) {
+    params.append("markers", `size:mid|color:0x6E6BF0|${lodging.lat},${lodging.lng}`);
+  }
+  // 路徑含住宿頭尾:早上從住宿出發,中間天晚上回住宿(閉環),看得出當天動線
+  const pathPts = lodging
+    ? [lodging, ...pts, ...(lodging.returnAtNight ? [lodging] : [])]
+    : pts;
+  if (pathPts.length > 1) {
     params.append(
       "path",
-      `color:0x0E9BA4CC|weight:3|${pts.map((p) => `${p.lat},${p.lng}`).join("|")}`,
+      `color:0x0E9BA4CC|weight:3|${pathPts.map((p) => `${p.lat},${p.lng}`).join("|")}`,
     );
   }
   const res = await fetch(`https://maps.googleapis.com/maps/api/staticmap?${params}`);

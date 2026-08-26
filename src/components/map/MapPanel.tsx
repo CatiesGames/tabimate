@@ -7,11 +7,12 @@ import {
   Map as GMap,
   useMap,
 } from "@vis.gl/react-google-maps";
-import { MapTrifold, Plus, X } from "@phosphor-icons/react";
+import { MapTrifold, Plus, X, MoonStars } from "@phosphor-icons/react";
 
 import { apiFetch } from "@/lib/api";
 import { CATEGORY_META, guessCategory } from "@/lib/categories";
 import { cn } from "@/lib/cn";
+import { carryOverLodging } from "@/shared/conflicts";
 import type { Leg, Stop } from "@/shared/types";
 import {
   useSelection,
@@ -50,6 +51,16 @@ function MapCanvas() {
     [doc, activeDayId],
   );
   const located = stops.filter((s) => s.lat != null && s.lng != null);
+  // 續住日的住宿(當天起點/終點):地圖也要標,才看得出從哪出發、回哪裡住
+  const carry = useMemo(
+    () => (doc && activeDayId ? carryOverLodging(doc.days, doc.stops, activeDayId) : null),
+    [doc, activeDayId],
+  );
+  const carryStop = carry && carry.stop.lat != null && carry.stop.lng != null ? carry.stop : null;
+  const fitStops = useMemo(
+    () => (carryStop ? [...located, carryStop] : located),
+    [located, carryStop],
+  );
 
   const [poi, setPoi] = useState<{ placeId: string; lat: number; lng: number } | null>(null);
 
@@ -79,7 +90,22 @@ function MapCanvas() {
           }
         }}
       >
-        <FitBounds stops={located} dayId={activeDayId} />
+        <FitBounds stops={fitStops} dayId={activeDayId} />
+        {carryStop && (
+          <AdvancedMarker
+            position={{ lat: carryStop.lat!, lng: carryStop.lng! }}
+            zIndex={5}
+            onClick={() => setSelectedStop(carryStop.id)}
+          >
+            <div
+              className="flex size-7 items-center justify-center rounded-full border-2 border-white text-white shadow-lift"
+              style={{ backgroundColor: "var(--tm-cat-lodging)" }}
+              title={`${carryStop.name}(住宿)`}
+            >
+              <MoonStars weight="fill" className="size-3.5" />
+            </div>
+          </AdvancedMarker>
+        )}
         {located.map((stop, i) => {
           const idx = stops.indexOf(stop);
           const meta = CATEGORY_META[stop.category];

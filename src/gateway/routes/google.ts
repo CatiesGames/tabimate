@@ -11,7 +11,9 @@ import {
   staticMap,
   type Waypoint,
 } from "../google";
+import { carryOverLodging } from "../../shared/conflicts";
 import { db } from "../db";
+import { loadDoc } from "../itinerary";
 import { HttpError, json, route } from "../http";
 import { getSetting } from "../settings";
 
@@ -99,7 +101,14 @@ export function registerGoogleRoutes() {
       )
       .all(dayId) as Array<{ lat: number; lng: number }>;
     if (pts.length === 0) throw new HttpError(404, "no_located_stops");
-    const { path, cache } = await guard(() => staticMap(pts));
+    // 續住日把住宿也畫進地圖(起點/終點)
+    const { doc } = loadDoc(day.trip_id);
+    const carry = carryOverLodging(doc.days, doc.stops, dayId);
+    const lodging =
+      carry && carry.stop.lat != null && carry.stop.lng != null
+        ? { lat: carry.stop.lat, lng: carry.stop.lng, returnAtNight: !carry.isCheckoutDay }
+        : undefined;
+    const { path, cache } = await guard(() => staticMap(pts, lodging));
     return new Response(Bun.file(path), {
       headers: {
         "content-type": "image/png",

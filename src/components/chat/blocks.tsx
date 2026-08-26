@@ -72,11 +72,34 @@ export function BlockRenderer({
   }
 }
 
-// ---- 迷你 markdown(粗體/代碼/連結/清單/標題)----
+// ---- 迷你 markdown(粗體/代碼/連結/圖片/清單/標題)----
+
+/**
+ * 聊天內嵌圖片:gphoto:<ref> 走自家 Google 照片代理(快取、不破圖、與詳情共用額度);
+ * 一般 https 圖片直接渲染,載入失敗自動隱藏。其他協定一律不渲染。
+ */
+function MdImage({ alt, src }: { alt: string; src: string }) {
+  if (!src.startsWith("gphoto:") && !src.startsWith("https://")) return null;
+  const url = src.startsWith("gphoto:")
+    ? `/api/google/photo?ref=${encodeURIComponent(src.slice(7))}&w=400`
+    : src;
+  return (
+    <img
+      src={url}
+      alt={alt}
+      loading="lazy"
+      onError={(e) => {
+        (e.currentTarget as HTMLImageElement).style.display = "none";
+      }}
+      className="my-1 mr-1.5 inline-block h-32 max-w-60 rounded-md border border-line object-cover align-top"
+    />
+  );
+}
+
 
 function inline(text: string, keyPrefix: string): React.ReactNode[] {
   const out: React.ReactNode[] = [];
-  const re = /(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)]+\)|https?:\/\/\S+)/g;
+  const re = /(!\[[^\]]*\]\([^)]+\)|\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)]+\)|https?:\/\/\S+)/g;
   let last = 0;
   let m: RegExpExecArray | null;
   let k = 0;
@@ -84,7 +107,10 @@ function inline(text: string, keyPrefix: string): React.ReactNode[] {
     if (m.index > last) out.push(text.slice(last, m.index));
     const tok = m[0];
     const key = `${keyPrefix}-${k++}`;
-    if (tok.startsWith("**")) {
+    if (tok.startsWith("![")) {
+      const mm = /!\[([^\]]*)\]\(([^)]+)\)/.exec(tok)!;
+      out.push(<MdImage key={key} alt={mm[1]} src={mm[2]} />);
+    } else if (tok.startsWith("**")) {
       out.push(
         <strong key={key} className="font-semibold text-ink">
           {tok.slice(2, -2)}

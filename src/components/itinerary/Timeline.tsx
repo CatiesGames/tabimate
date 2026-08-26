@@ -193,12 +193,18 @@ export function Timeline() {
                 />
               )}
               <div className="flex flex-col items-center gap-1 pt-0.5">
-                <span
-                  className="flex size-8 shrink-0 items-center justify-center rounded-full text-white"
-                  style={{ backgroundColor: meta.colorVar }}
-                  title={meta.label}
-                >
-                  <Icon weight="fill" className="size-4" />
+                <span className="relative">
+                  <span
+                    className="flex size-8 shrink-0 items-center justify-center rounded-full text-white"
+                    style={{ backgroundColor: meta.colorVar }}
+                    title={meta.label}
+                  >
+                    <Icon weight="fill" className="size-4" />
+                  </span>
+                  {/* 與地圖數字標記對應 */}
+                  <span className="tm-num absolute -top-1 -left-1 flex size-4 items-center justify-center rounded-full border border-line bg-surface text-[10px] leading-none font-bold text-ink">
+                    {i + 1}
+                  </span>
                 </span>
                 <button
                   aria-label="拖曳排序"

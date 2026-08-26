@@ -356,7 +356,7 @@ export function registerCoreTools() {
   registerTool({
     name: "get_place_details",
     description:
-      "取得 Google 地點詳細資訊:座標、地址、評分、營業時間、照片、官網、電話。placeId 來自 search_places 或行程中地點的 placeId 欄位。查證營業時間時優先用這個,再用 WebSearch 補足(如公休日、預約規則)。",
+      "取得 Google 地點詳細資訊:座標、地址、評分、營業時間、照片、官網、電話。placeId 來自 search_places 或行程中地點的 placeId 欄位。查證營業時間時優先用這個,再用 WebSearch 補足(如公休日、預約規則)。回傳的 photoRefs 可用 ![名稱](gphoto:<ref>) 語法嵌在聊天回覆裡顯示照片。",
     schema: z.object({
       placeId: z.string().min(1),
       stopId: z.string().optional().describe("若是在查證行程中的某個地點,附上該 stopId"),
