@@ -36,6 +36,7 @@ export function Timeline() {
 
   const listRef = useRef<HTMLDivElement>(null);
   const suppressClick = useRef(false);
+  const [gapAdd, setGapAdd] = useState<number | null>(null);
   const [dragging, setDragging] = useState<{
     stopId: string;
     fromIndex: number;
@@ -259,9 +260,15 @@ export function Timeline() {
                         </Hint>
                       )}
                       {stop.startTime}
-                      {stop.category === "lodging" ? (
+                      {stop.category === "lodging" && !isDayVisitLodging(stop) ? (
                         <span className="text-[11px] font-normal text-ink-faint">
                           入住{isOvernightLodging(stop) && ` · 退房 ${stop.endTime}`}
+                        </span>
+                      ) : stop.category === "lodging" ? (
+                        <span className={conflicted ? "text-alert/70" : "text-ink-faint"}>
+                          {" "}
+                          - {stop.endTime}
+                          <span className="ml-1 text-[11px] font-normal">休息</span>
                         </span>
                       ) : (
                         stop.endTime && (
@@ -293,10 +300,10 @@ export function Timeline() {
               <StopThumb stop={stop} className="size-14 shrink-0" />
             </div>
 
-            {/* 交通段 */}
+            {/* 交通段 + 行程間插入 */}
             {nextStop && (
               <div className="flex py-2 pl-[1.35rem]">
-                <div className="flex min-w-0 flex-1 items-center border-l-2 border-dotted border-line-strong py-0.5 pl-4">
+                <div className="flex min-w-0 flex-1 items-center gap-1.5 border-l-2 border-dotted border-line-strong py-0.5 pl-4">
                   {leg ? (
                     <LegEditor stop={stop} nextStop={nextStop} leg={leg}>
                       <button
@@ -326,7 +333,26 @@ export function Timeline() {
                       </button>
                     </LegEditor>
                   )}
+                  <Hint tip={"在這裡插入行程"}>
+                    <button
+                      aria-label="在此插入行程"
+                      onClick={() => setGapAdd(gapAdd === i + 1 ? null : i + 1)}
+                      className="tm-focus flex size-6 shrink-0 items-center justify-center rounded-full text-ink-faint opacity-50 transition-[opacity,color,background-color] hover:bg-coral-wash hover:text-coral-deep hover:opacity-100"
+                    >
+                      <Plus weight="bold" className="size-3.5" />
+                    </button>
+                  </Hint>
                 </div>
+              </div>
+            )}
+            {gapAdd === i + 1 && nextStop && (
+              <div className="mb-2 pl-[1.35rem]">
+                <AddStop
+                  dayId={activeDayId}
+                  position={i + 1}
+                  defaultOpen
+                  onIdle={() => setGapAdd(null)}
+                />
               </div>
             )}
           </div>

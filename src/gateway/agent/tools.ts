@@ -34,7 +34,7 @@ booking 物件欄位:platform/url/confirmationCode/price/onSaleDate/deadline/not
 bookingType:none|reservation_required(不訂進不去)|ticket_required(要先買票)|recommended(建議預約)|walk_in_queue(現場排隊)。
 住宿跨夜語意(平台特例,務必理解):
 - lodging 的 startTime=入住、endTime=「退房日早上的退房時間」(可早於 startTime,合法);**nights=住幾晚**(如 D1 入住住到 D4 晚、D5 退房 → nights:4)。住宿只放在入住那天並設好 nights,不要在其他天重複新增同一間。
-- 續住的每一天,畫面會自動在當天「最上方」顯示住宿錨點(昨晚住這)、中間天「最下方」也有(今晚回這裡續住)。這些錨點不是 stop,對應資料存在那一天(day)上:
+- 續住的每一天,畫面會自動在當天「最上方」顯示住宿錨點(昨晚住這)、中間天「最下方」也有(今晚回這裡住)。這些錨點不是 stop,對應資料存在那一天(day)上:
   - day.lodgingDepartTime = 那天早上幾點離開住宿(退房日不用這欄,以住宿的 endTime 為準)
   - day.lodgingReturnTime = 中間天晚上幾點回到住宿
   - day.lodgingMorningLeg = 住宿→當天第一個行程的交通;day.lodgingEveningLeg = 最後一個行程→住宿的交通。格式:{"mode":"walk|transit|drive|taxi|bike|flight|other","durationMin":15,"departureTime":"10:00","arrivalTime":"10:15","transit":{同 set_leg 的 transit,可含 summary/steps/fare},"notes":""};設 null 清除

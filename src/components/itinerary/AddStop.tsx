@@ -37,10 +37,26 @@ function lruSet(q: string, v: AcResult[]) {
 
 type Mode = "idle" | "search" | "manual";
 
-export function AddStop({ dayId, position }: { dayId: string; position?: number }) {
+export function AddStop({
+  dayId,
+  position,
+  defaultOpen,
+  onIdle,
+}: {
+  dayId: string;
+  position?: number;
+  /** 直接以搜尋模式展開(行程間隙插入用)。 */
+  defaultOpen?: boolean;
+  /** 收合回 idle 時通知(間隙插入用來卸載)。 */
+  onIdle?: () => void;
+}) {
   const { googleReady } = useSession();
   const { doc, editOps } = useTrip();
-  const [mode, setMode] = useState<Mode>("idle");
+  const [mode, setModeRaw] = useState<Mode>(defaultOpen ? "search" : "idle");
+  const setMode = (m: Mode) => {
+    setModeRaw(m);
+    if (m === "idle") onIdle?.();
+  };
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<AcResult[]>([]);
   const [highlight, setHighlight] = useState(0);
@@ -48,6 +64,12 @@ export function AddStop({ dayId, position }: { dayId: string; position?: number 
   const [adding, setAdding] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
+
+  // 間隙插入以搜尋模式直接展開:自動聚焦輸入框
+  useEffect(() => {
+    if (defaultOpen) setTimeout(() => inputRef.current?.focus(), 30);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // 以行程中已有座標的點做搜尋偏好中心
   const near = doc?.stops.find((s) => s.lat != null && s.lng != null);
