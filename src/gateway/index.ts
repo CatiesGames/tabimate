@@ -65,6 +65,16 @@ const server = Bun.serve<WsData>({
     if (url.pathname === "/healthz" || url.pathname === "/api/healthz") {
       return json({ ok: true, service: "tabimate-gateway" });
     }
+    if (url.pathname === "/api/app-version") {
+      // 版本指紋 = next build 的 BUILD_ID;bun run update 後改變 → 前端提示重新載入
+      let version = "dev";
+      try {
+        version = (await Bun.file(".next/BUILD_ID").text()).trim() || "dev";
+      } catch {
+        // dev 模式沒有 build 產物
+      }
+      return json({ version });
+    }
     const res = await dispatch(req);
     if (res) return res;
     return err(404, "not_found");

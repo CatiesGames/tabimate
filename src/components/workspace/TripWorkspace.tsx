@@ -1,7 +1,6 @@
 "use client";
 
-import {
-  AirplaneTilt,
+import { ArrowClockwise, AirplaneTilt,
   CaretDown,
   ChatCircle,
   ClockCounterClockwise,
@@ -10,11 +9,10 @@ import {
   ListDashes,
   MapTrifold,
   SignOut,
-  Ticket,
-} from "@phosphor-icons/react";
+  Ticket } from "@phosphor-icons/react";
 import * as Popover from "@radix-ui/react-popover";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/cn";
 import { useChat } from "@/lib/workspace/WorkspaceProvider";
@@ -36,6 +34,53 @@ import { MapPanel } from "@/components/map/MapPanel";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { VersionsPanel } from "@/components/versions/VersionsPanel";
 import { BookingOverview } from "@/components/booking/BookingOverview";
+
+/**
+ * 新版本偵測:以 /api/app-version(next build 的 BUILD_ID)為指紋;
+ * WS 重連(部署重啟必經)、回到分頁、每 60 秒比對,變了就顯示重新載入橫幅。
+ */
+function UpdateBanner({ wsStatus }: { wsStatus: string }) {
+  const [stale, setStale] = useState(false);
+  const baseline = useRef<string | null>(null);
+  const check = async () => {
+    try {
+      const res = await fetch("/api/app-version", { cache: "no-store" });
+      const { version } = (await res.json()) as { version: string };
+      if (!version || version === "dev") return;
+      if (baseline.current == null) baseline.current = version;
+      else if (version !== baseline.current) setStale(true);
+    } catch {
+      // 離線等:略過
+    }
+  };
+  useEffect(() => {
+    check();
+    const t = setInterval(check, 60_000);
+    const onVis = () => {
+      if (document.visibilityState === "visible") check();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (wsStatus === "open") check();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wsStatus]);
+  if (!stale) return null;
+  return (
+    <button
+      onClick={() => location.reload()}
+      className="tm-focus tm-pop-in fixed top-2 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full bg-coral px-4 py-2 text-sm font-medium text-white shadow-lift transition-transform hover:bg-coral-deep active:scale-95"
+    >
+      <ArrowClockwise weight="bold" className="size-4" />
+      有新版本 — 點一下重新載入
+    </button>
+  );
+}
 
 export function TripWorkspace() {
   const { me, tripId, memberOf } = useSession();
@@ -68,6 +113,7 @@ export function TripWorkspace() {
   return (
     <div className="fixed inset-0 flex flex-col overflow-hidden bg-bg">
       <ToastHost />
+      <UpdateBanner wsStatus={status} />
 
       {/* 頂欄 */}
       <header className="flex shrink-0 items-center gap-3 border-b border-line bg-surface px-3 py-1.5">
