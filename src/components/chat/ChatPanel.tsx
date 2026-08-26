@@ -23,7 +23,7 @@ import { cn } from "@/lib/cn";
 import { chatDateLabel, clockLabel } from "@/lib/dates";
 import type { ChatMention, ChatMessage } from "@/shared/types";
 import { useChat, useSelection, useSession, useTrip } from "@/lib/workspace/WorkspaceProvider";
-import { Avatar, PulseDots, Spinner, Tag, ZoomableImage } from "@/components/ui";
+import { Avatar, ConfirmDialog, Hint, PulseDots, Spinner, Tag, ZoomableImage } from "@/components/ui";
 import { BlockRenderer, maskUnfinishedImage, MiniMarkdown, ToolStatusBlock } from "./blocks";
 import {
   buildCandidates,
@@ -101,6 +101,7 @@ export function ChatPanel() {
 function ChatHeader() {
   const { store } = useChat();
   const { tripId, memberOf } = useSession();
+  const [confirmReset, setConfirmReset] = useState(false);
   useSyncExternalStore(store.subscribeStream, store.streamVersion, store.streamVersion);
   const phase = store.agentPhase;
 
@@ -145,13 +146,26 @@ function ChatHeader() {
           )}
         </p>
       </div>
-      <button
-        title="重置對話脈絡"
-        onClick={() => apiFetch(`/api/trips/${tripId}/agent/reset`, { json: {} })}
-        className="tm-focus rounded-md p-1.5 text-ink-faint transition-colors hover:bg-sunken hover:text-ink"
-      >
-        <ArrowCounterClockwise className="size-4" />
-      </button>
+      <Hint tip={"重置對話脈絡\n塔比會忘記先前聊過的內容\n(行程資料不受影響)"}>
+        <button
+          aria-label="重置對話脈絡"
+          onClick={() => setConfirmReset(true)}
+          className="tm-focus rounded-md p-1.5 text-ink-faint transition-colors hover:bg-sunken hover:text-ink"
+        >
+          <ArrowCounterClockwise className="size-4" />
+        </button>
+      </Hint>
+      <ConfirmDialog
+        open={confirmReset}
+        onOpenChange={setConfirmReset}
+        title="重置塔比的對話脈絡?"
+        description="塔比會忘記先前聊過的內容(偏好、討論到一半的事),下一則訊息從新對話開始。行程、預約、版本歷史都不受影響。"
+        confirmLabel="重置"
+        onConfirm={() => {
+          setConfirmReset(false);
+          apiFetch(`/api/trips/${tripId}/agent/reset`, { json: {} });
+        }}
+      />
     </header>
   );
 }
