@@ -329,8 +329,13 @@ export function TripWorkspace() {
           <div className="min-h-0 flex-1">
             <MapPanel />
           </div>
+          {/* 桌機:詳情卡在地圖下方佔位 */}
           <div className="contents max-md:hidden">
             <DetailHost />
+          </div>
+          {/* 手機地圖頁:同桌機佔位式(地圖往上縮),地圖鈕=重新定位 */}
+          <div className="hidden max-md:contents max-md:[&>section]:max-h-[46dvh]">
+            <DetailHost onShowMap={() => window.dispatchEvent(new Event("tm-locate"))} />
           </div>
         </main>
 
@@ -348,12 +353,6 @@ export function TripWorkspace() {
 
       {/* 手機:地點/交通詳細=行程頁底部抽屜(黑幕點旁關閉;塔比頁不出現) */}
       {mobileTab === "timeline" && <MobileDetailDrawer onShowMap={() => setMobileTab("map")} />}
-      {/* 手機:地圖頁點行程地點也出詳情卡 — 無黑幕、不擋地圖操作;地圖鈕=重新定位 */}
-      {mobileTab === "map" && (
-        <div className="pointer-events-none fixed inset-x-0 bottom-[calc(3.8rem+env(safe-area-inset-bottom))] z-30 hidden px-2 max-md:block [&>section]:pointer-events-auto">
-          <DetailHost onShowMap={() => window.dispatchEvent(new Event("tm-locate"))} />
-        </div>
-      )}
 
       {/* lg 以下:聊天抽屜浮動開關(帶 agent 活動脈動) */}
       <ChatFab
