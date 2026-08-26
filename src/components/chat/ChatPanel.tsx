@@ -24,7 +24,7 @@ import { chatDateLabel, clockLabel } from "@/lib/dates";
 import type { ChatMention, ChatMessage } from "@/shared/types";
 import { useChat, useSelection, useSession, useTrip } from "@/lib/workspace/WorkspaceProvider";
 import { Avatar, PulseDots, Spinner, Tag } from "@/components/ui";
-import { BlockRenderer, MiniMarkdown, ToolStatusBlock } from "./blocks";
+import { BlockRenderer, maskUnfinishedImage, MiniMarkdown, ToolStatusBlock } from "./blocks";
 import {
   buildCandidates,
   filterCandidates,
@@ -517,7 +517,7 @@ function AgentMessage({ message }: { message: ChatMessage }) {
           )}
           {isLive && liveText && (
             <div className="tm-stream-caret">
-              <MiniMarkdown text={liveText} />
+              <MiniMarkdown text={maskUnfinishedImage(liveText)} />
             </div>
           )}
           {isLive && !liveText && message.blocks.length === 0 && (

@@ -72,6 +72,14 @@ export function BlockRenderer({
   }
 }
 
+/** 串流中把結尾「未閉合的圖片語法」遮成佔位,避免長 photo ref 原文在打字過程閃現。 */
+export function maskUnfinishedImage(text: string): string {
+  const at = text.lastIndexOf("![");
+  if (at === -1) return text;
+  if (/^!\[[^\]]*\]\([^)]*\)/.test(text.slice(at))) return text; // 已閉合,照常渲染
+  return `${text.slice(0, at)}(附圖…)`;
+}
+
 // ---- 迷你 markdown(粗體/代碼/連結/圖片/清單/標題)----
 
 /**
