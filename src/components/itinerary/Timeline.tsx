@@ -303,6 +303,11 @@ export function Timeline() {
         );
       })}
 
+      <div className="mt-2">
+        <AddStop dayId={activeDayId} />
+      </div>
+
+      {/* 一天的結尾是回住宿:回住宿列固定在最下面(新增地點之後) */}
       {carryLodging && !carryLodging.isCheckoutDay && activeDay && (
         <CarryLodgingRow
           carry={carryLodging}
@@ -311,10 +316,6 @@ export function Timeline() {
           adjacentStop={stops[stops.length - 1] ?? null}
         />
       )}
-
-      <div className="mt-2">
-        <AddStop dayId={activeDayId} />
-      </div>
     </div>
   );
 }
@@ -374,7 +375,7 @@ function CarryLodgingRow({
   const hotelAsTo: Stop = { ...carry.stop, startTime: day.lodgingReturnTime, endTime: null };
 
   const legChip = adjacentStop && (
-    <div className={cn("flex pl-[1.35rem]", isTop ? "pb-2" : "py-2")}>
+    <div className={cn("flex pl-[1.35rem]", isTop ? "pb-2" : "pt-2")}>
       <div className="flex min-w-0 flex-1 items-center border-l-2 border-dotted border-line-strong py-0.5 pl-4">
         <LegEditor
           stop={isTop ? hotelAsFrom : adjacentStop}
@@ -404,7 +405,7 @@ function CarryLodgingRow({
       <div
         className={cn(
           "flex items-center gap-2 overflow-hidden rounded-lg border border-dashed border-cat-lodging/45 bg-cat-lodging/5 px-2.5 py-2 whitespace-nowrap",
-          isTop ? "mb-1.5" : "mt-0",
+          isTop ? "mb-1.5" : "mt-2",
         )}
       >
         <span
