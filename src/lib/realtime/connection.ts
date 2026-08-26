@@ -11,9 +11,17 @@ export type RtEvent = { type: string } & Record<string, unknown>;
 type Listener = (e: RtEvent) => void;
 type StatusListener = (s: RtStatus) => void;
 
-function wsBaseUrl(): string {
-  const proto = location.protocol === "https:" ? "wss" : "ws";
-  return `${proto}://${location.hostname}:${GATEWAY_PORT}`;
+/**
+ * WS 位址:
+ * - HTTPS(反向代理部署):同源 `wss://host/ws`,由反代轉給 gateway
+ *   (gateway 只有明文,直連 :4681 會被瀏覽器 mixed content 擋掉或 TLS 失敗)
+ * - HTTP(本機/區網直連):`ws://hostname:4681`(Next rewrite 不支援 WS,必須直連 gateway)
+ */
+export function wsBaseUrl(
+  loc: { protocol: string; host: string; hostname: string } = location,
+): string {
+  if (loc.protocol === "https:") return `wss://${loc.host}`;
+  return `ws://${loc.hostname}:${GATEWAY_PORT}`;
 }
 
 export class RtConnection {

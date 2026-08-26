@@ -49,6 +49,23 @@ bun run start            # 一鍵啟動 gateway(4681) + web(4680),Ctrl-C 一起�
 想常駐背景跑:`nohup bun run start > tabimate.log 2>&1 &`(或掛 launchd;
 `launchctl bootstrap` 後要再 `launchctl kickstart` 才會立刻啟動)。
 
+### HTTPS 網域部署(反向代理)
+
+要用自己的網域 + HTTPS 對外時,前端會自動改走**同源 WebSocket**(`wss://你的網域/ws`),
+所以反代必須把 `/ws` 轉給 gateway,其餘轉給 web。Caddy 範例:
+
+```caddyfile
+tabimate.example.com {
+    reverse_proxy /ws 127.0.0.1:4681
+    reverse_proxy /api/* 127.0.0.1:4681   # 可省略(Next 會轉),直代少一跳
+    reverse_proxy 127.0.0.1:4680
+}
+```
+
+- gateway(4681)只有明文,**不要**讓瀏覽器直連 `:4681`(HTTPS 頁面會被 mixed content 擋)
+- 本機/區網 http 直連不受影響,前端仍直連 `ws://主機:4681/ws`
+- cookie 沒有 `Secure` flag(見下方安全取捨),HTTPS 下瀏覽器照常接受
+
 ## 更新
 
 ```bash
