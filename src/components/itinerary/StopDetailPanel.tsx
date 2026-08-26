@@ -309,7 +309,8 @@ export function StopDetailPanel() {
               ))}
             </ul>
             {stop.verifySources.length > 0 && (
-              <p className="mt-2 flex flex-wrap gap-2 text-[11px]">
+              <p className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1 border-t border-line/70 pt-2 text-[11px]">
+                <span className="font-medium text-ink-faint">查證來源</span>
                 {stop.verifySources.map((s) => (
                   <a
                     key={s.url}
@@ -324,6 +325,13 @@ export function StopDetailPanel() {
               </p>
             )}
           </div>
+        )}
+
+        {/* 已查證卻沒留下來源(舊版寫入):明講並引導補查,不默默隱藏 */}
+        {stop.verifyStatus !== "unverified" && stop.verifySources.length === 0 && (
+          <p className="rounded-lg bg-sun-wash/60 px-3 py-2 text-[12px] text-sun-deep">
+            這筆查證沒有留下來源(舊版寫入)。可以跟塔比說「重新查證{stop.name}」補上來源。
+          </p>
         )}
 
         {/* 沒有營業時間資料的地點(路口、街區、航廈…):查證來源獨立呈現,不然會看不到 */}
