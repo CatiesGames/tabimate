@@ -155,13 +155,25 @@ function FitBounds({ stops, dayId }: { stops: Stop[]; dayId: string | null }) {
     map.fitBounds(bounds, 56);
   }, [map, stops, dayId]);
 
-  // 選點 → 平移過去
-  const { selectedStopId } = useSelection();
+  // 選點 → 平移過去;選交通 → 涵蓋前後兩個地點
+  const { selectedStopId, selectedLegId } = useSelection();
+  const { doc } = useTrip();
   useEffect(() => {
     if (!map || !selectedStopId) return;
     const s = stops.find((x) => x.id === selectedStopId);
     if (s) map.panTo({ lat: s.lat!, lng: s.lng! });
   }, [map, selectedStopId, stops]);
+  useEffect(() => {
+    if (!map || !selectedLegId || !doc) return;
+    const leg = doc.legs.find((l) => l.fromStopId === selectedLegId);
+    if (!leg) return;
+    const ends = [doc.stops.find((x) => x.id === leg.fromStopId), doc.stops.find((x) => x.id === leg.toStopId)]
+      .filter((x): x is NonNullable<typeof x> => !!x && x.lat != null && x.lng != null);
+    if (ends.length === 0) return;
+    const bounds = new google.maps.LatLngBounds();
+    for (const e of ends) bounds.extend({ lat: e.lat!, lng: e.lng! });
+    map.fitBounds(bounds, 90);
+  }, [map, selectedLegId, doc]);
   return null;
 }
 

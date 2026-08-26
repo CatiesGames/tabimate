@@ -64,8 +64,11 @@ type TripCtx = {
 type SelectionCtx = {
   activeDayId: string | null;
   selectedStopId: string | null;
+  /** 選中的交通段(以 fromStopId 識別);與 selectedStopId 互斥。 */
+  selectedLegId: string | null;
   setActiveDay: (dayId: string) => void;
   setSelectedStop: (stopId: string | null) => void;
+  setSelectedLeg: (fromStopId: string | null) => void;
 };
 
 type PresenceCtx = {
@@ -125,6 +128,7 @@ export function WorkspaceProvider({
   const [changedStopIds, setChangedStopIds] = useState<Set<string>>(new Set());
   const [activeDayId, setActiveDayId] = useState<string | null>(null);
   const [selectedStopId, setSelectedStopId] = useState<string | null>(null);
+  const [selectedLegId, setSelectedLegId] = useState<string | null>(null);
 
   const chatStoreRef = useRef<ChatStore>(null as never);
   if (!chatStoreRef.current) chatStoreRef.current = new ChatStore();
@@ -481,13 +485,22 @@ export function WorkspaceProvider({
     () => ({
       activeDayId,
       selectedStopId,
+      selectedLegId,
       setActiveDay: (dayId) => {
         setActiveDayId(dayId);
         setSelectedStopId(null);
+        setSelectedLegId(null);
       },
-      setSelectedStop: setSelectedStopId,
+      setSelectedStop: (id) => {
+        setSelectedStopId(id);
+        if (id) setSelectedLegId(null);
+      },
+      setSelectedLeg: (id) => {
+        setSelectedLegId(id);
+        if (id) setSelectedStopId(null);
+      },
     }),
-    [activeDayId, selectedStopId],
+    [activeDayId, selectedStopId, selectedLegId],
   );
 
   const proposalsValue = useMemo<ProposalsCtx>(

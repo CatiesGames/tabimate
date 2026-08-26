@@ -174,7 +174,7 @@ export function MentionText({
   mentions: ChatMention[];
 }) {
   const { doc } = useTrip();
-  const { setActiveDay, setSelectedStop } = useSelection();
+  const { setActiveDay, setSelectedStop, setSelectedLeg } = useSelection();
   if (mentions.length === 0) return <>{content}</>;
 
   const jump = (m: ChatMention) => {
@@ -186,7 +186,8 @@ export function MentionText({
     const stop = doc.stops.find((s) => s.id === m.id);
     if (!stop) return;
     setActiveDay(stop.dayId);
-    setSelectedStop(stop.id);
+    if (m.kind === "leg") setSelectedLeg(stop.id);
+    else setSelectedStop(stop.id);
   };
 
   // 依出現位置切段,@label 段落換成 chip

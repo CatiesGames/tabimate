@@ -30,7 +30,7 @@ const CONFLICT_TIP =
 
 export function Timeline() {
   const { doc, changedStopIds, editOps } = useTrip();
-  const { activeDayId, selectedStopId, setSelectedStop } = useSelection();
+  const { activeDayId, selectedStopId, setSelectedStop, selectedLegId, setSelectedLeg } = useSelection();
   const { viewersOfStop } = usePresence();
   const { memberOf } = useSession();
 
@@ -407,27 +407,27 @@ export function Timeline() {
                 {renderGap(`g${i}-a`, i + 1, transitPill(stop, nextStop, leg))}
                 <div className="flex pl-[1.35rem]">
                   <div className="flex min-w-0 flex-1 items-center border-l-2 border-dotted border-line-strong py-0.5 pl-4">
-                    <LegEditor stop={stop} nextStop={nextStop} leg={leg}>
-                      <button
-                        className={cn(
-                          "tm-focus flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border px-3 py-2 text-left text-xs shadow-card transition-[border-color,box-shadow] hover:shadow-lift",
-                          leg.needsReview
-                            ? "border-sun/60 bg-sun-wash text-sun-deep hover:border-sun"
-                            : "border-line bg-surface text-ink-soft hover:border-ocean/40",
-                        )}
-                      >
-                        {leg.needsReview && (
-                          <Hint tip={"相鄰地點被移動或改了時間\n請重新確認這段交通(點開重新設定)"}>
-                            <span className="flex items-center gap-1 font-medium">
-                              <Warning weight="fill" className="size-3.5" />
-                              需重新確認
-                            </span>
-                          </Hint>
-                        )}
-                        {leg.bookingType !== "none" && <BookingBadge stop={leg} />}
-                        <LegSummary leg={leg} muted={leg.needsReview} />
-                      </button>
-                    </LegEditor>
+                    <button
+                      onClick={() => setSelectedLeg(selectedLegId === stop.id ? null : stop.id)}
+                      className={cn(
+                        "tm-focus flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border px-3 py-2 text-left text-xs shadow-card transition-[border-color,box-shadow] hover:shadow-lift",
+                        leg.needsReview
+                          ? "border-sun/60 bg-sun-wash text-sun-deep hover:border-sun"
+                          : "border-line bg-surface text-ink-soft hover:border-ocean/40",
+                        selectedLegId === stop.id && "border-ocean/60 shadow-lift",
+                      )}
+                    >
+                      {leg.needsReview && (
+                        <Hint tip={"相鄰地點被移動或改了時間\n請重新確認這段交通(點開重新設定)"}>
+                          <span className="flex items-center gap-1 font-medium">
+                            <Warning weight="fill" className="size-3.5" />
+                            需重新確認
+                          </span>
+                        </Hint>
+                      )}
+                      {leg.bookingType !== "none" && <BookingBadge stop={leg} />}
+                      <LegSummary leg={leg} muted={leg.needsReview} />
+                    </button>
                   </div>
                 </div>
                 {renderGap(`g${i}-b`, i + 1, transitPill(stop, nextStop, leg))}

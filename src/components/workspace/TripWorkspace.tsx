@@ -30,6 +30,7 @@ import { DayTabs } from "@/components/itinerary/DayTabs";
 import { DayDrawer } from "@/components/itinerary/DayDrawer";
 import { Timeline } from "@/components/itinerary/Timeline";
 import { StopDetailPanel } from "@/components/itinerary/StopDetailPanel";
+import { LegDetailPanel } from "@/components/itinerary/LegDetailPanel";
 import { MapPanel } from "@/components/map/MapPanel";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { VersionsPanel } from "@/components/versions/VersionsPanel";
@@ -80,6 +81,14 @@ function UpdateBanner({ wsStatus }: { wsStatus: string }) {
       有新版本 — 點一下重新載入
     </button>
   );
+}
+
+/** 地點/交通詳細卡的統一出口:選了哪種就顯示哪張(桌面在地圖下、手機為底部抽屜)。 */
+function DetailHost() {
+  const { selectedStopId, selectedLegId } = useSelection();
+  if (selectedStopId) return <StopDetailPanel />;
+  if (selectedLegId) return <LegDetailPanel />;
+  return null;
 }
 
 export function TripWorkspace() {
@@ -291,7 +300,9 @@ export function TripWorkspace() {
           <div className="min-h-0 flex-1">
             <MapPanel />
           </div>
-          <StopDetailPanel />
+          <div className="contents max-md:hidden">
+            <DetailHost />
+          </div>
         </main>
 
         <aside
@@ -304,6 +315,11 @@ export function TripWorkspace() {
         >
           <ChatPanel />
         </aside>
+      </div>
+
+      {/* 手機:地點/交通詳細統一為底部抽屜(不蓋導航,跨分頁顯示) */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(3.8rem+env(safe-area-inset-bottom))] z-30 hidden px-2 max-md:block [&>section]:pointer-events-auto">
+        <DetailHost />
       </div>
 
       {/* lg 以下:聊天抽屜浮動開關(帶 agent 活動脈動) */}

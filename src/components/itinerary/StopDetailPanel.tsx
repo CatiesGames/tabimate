@@ -73,7 +73,7 @@ export function StopDetailPanel() {
     editOps([buildPatchOp(stop.id, p)], summary);
 
   return (
-    <section className="tm-pop-in tm-scroll flex max-h-[46%] flex-col overflow-y-auto rounded-xl border border-line bg-surface shadow-lift">
+    <section className="tm-pop-in tm-scroll flex max-h-[46%] flex-col overflow-y-auto rounded-xl border border-line bg-surface shadow-lift max-md:max-h-[56dvh]">
       {/* 照片:一個地點一張(照片額度以「每次抓圖」計費),點開看大圖 */}
       {googleReady && (stop.place?.photoRefs?.length ?? 0) > 0 && (
         <div className="p-2 pb-0">
