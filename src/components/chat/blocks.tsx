@@ -26,7 +26,7 @@ import {
   useSession,
   useTrip,
 } from "@/lib/workspace/WorkspaceProvider";
-import { Avatar, Button, Spinner, Tag } from "@/components/ui";
+import { Avatar, Button, Spinner, Tag, ZoomableImage } from "@/components/ui";
 
 export function BlockRenderer({
   block,
@@ -54,7 +54,7 @@ export function BlockRenderer({
       return <BookingAuditBlock block={block} />;
     case "image":
       return (
-        <img
+        <ZoomableImage
           src={block.url}
           alt="附圖"
           className="max-h-56 max-w-full rounded-lg border border-line object-contain"
@@ -91,15 +91,17 @@ function MdImage({ alt, src }: { alt: string; src: string }) {
   const url = src.startsWith("gphoto:")
     ? `/api/google/photo?ref=${encodeURIComponent(src.slice(7))}&w=400`
     : src;
+  const zoom = src.startsWith("gphoto:")
+    ? `/api/google/photo?ref=${encodeURIComponent(src.slice(7))}&w=1000`
+    : url;
   return (
-    <img
+    <ZoomableImage
       src={url}
+      zoomSrc={zoom}
       alt={alt}
-      loading="lazy"
-      onError={(e) => {
-        (e.currentTarget as HTMLImageElement).style.display = "none";
-      }}
-      className="my-1 mr-1.5 inline-block h-32 max-w-60 rounded-md border border-line object-cover align-top"
+      hideOnError
+      wrapperClassName="my-1 mr-1.5 inline-block"
+      className="h-32 max-w-60 rounded-md border border-line object-cover"
     />
   );
 }

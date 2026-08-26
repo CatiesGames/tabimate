@@ -23,9 +23,8 @@ import {
   useSession,
   useTrip,
 } from "@/lib/workspace/WorkspaceProvider";
-import { ConfirmDialog, Hint, SegmentedChips, Tag } from "@/components/ui";
+import { ConfirmDialog, Hint, ImageLightbox, SegmentedChips, Tag } from "@/components/ui";
 import { BookingBadge, bookingWords, VerifyBadge } from "./badges";
-import { PhotoLightbox } from "./PhotoLightbox";
 import { TimeField } from "./TimeField";
 
 export function StopDetailPanel() {
@@ -93,9 +92,14 @@ export function StopDetailPanel() {
           </button>
         </div>
       )}
-      {lightboxIndex !== null && stop.place?.photoRefs && (
-        <PhotoLightbox
-          photoRefs={stop.place.photoRefs.slice(0, 1)}
+      {lightboxIndex !== null && stop.place?.photoRefs?.[0] && (
+        <ImageLightbox
+          images={[
+            {
+              src: `/api/google/photo?ref=${encodeURIComponent(stop.place.photoRefs[0])}&w=1000`,
+              alt: stop.name,
+            },
+          ]}
           name={stop.name}
           initialIndex={0}
           onClose={() => setLightboxIndex(null)}

@@ -23,7 +23,7 @@ import { cn } from "@/lib/cn";
 import { chatDateLabel, clockLabel } from "@/lib/dates";
 import type { ChatMention, ChatMessage } from "@/shared/types";
 import { useChat, useSelection, useSession, useTrip } from "@/lib/workspace/WorkspaceProvider";
-import { Avatar, PulseDots, Spinner, Tag } from "@/components/ui";
+import { Avatar, PulseDots, Spinner, Tag, ZoomableImage } from "@/components/ui";
 import { BlockRenderer, maskUnfinishedImage, MiniMarkdown, ToolStatusBlock } from "./blocks";
 import {
   buildCandidates,
@@ -304,7 +304,7 @@ const MessageRow = function MessageRow({ message }: { message: ChatMessage }) {
             {message.attachmentIds.length > 0 && (
               <span className="mt-1.5 flex flex-wrap gap-1.5">
                 {message.attachmentIds.map((id) => (
-                  <img
+                  <ZoomableImage
                     key={id}
                     src={`/api/attachments/${id}/file`}
                     alt="附圖"
