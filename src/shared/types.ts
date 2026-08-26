@@ -75,6 +75,8 @@ export type Stop = {
   booking: BookingInfo | null;
   /** 住宿住幾晚(連泊;入住日=所在天,退房日=入住日+nights)。非住宿恆為 1。 */
   nights: number;
+  /** 不納入地圖視野計算(遠處機場等):地圖仍畫編號,但總覽不被它撐大。 */
+  excludeFromFit: boolean;
   updatedAt: number;
   updatedByUserId: string | null;
 };

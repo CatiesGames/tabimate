@@ -22,7 +22,7 @@ const OPERATIONS_DOC = `每個 operation 是一個物件,op 欄位決定種類:
 - {"op":"move_day","dayId":"...","position":0}
 - {"op":"remove_day","dayId":"..."} (連同該天所有地點)
 - {"op":"add_stop","tempId?":"s1","dayId":"...","position?":0,"name":"淺草寺","category?":"sight","startTime?":"09:00","endTime?":"10:30","placeId?":"...","lat?":35.7,"lng?":139.8,"address?":"...","notes?":"...","bookingType?":"reservation_required","booking?":{...}} 分類:lodging|food|cafe|sight|shopping|activity|transit-hub|other
-- {"op":"update_stop","stopId":"...","patch":{任意 stop 欄位,含 bookingType/bookingStatus/booking}}
+- {"op":"update_stop","stopId":"...","patch":{任意 stop 欄位,含 bookingType/bookingStatus/booking,excludeFromFit(true=不納入地圖視野計算,遠處機場/車站用;地圖仍畫編號)}}
 - {"op":"move_stop","stopId":"...","toDayId":"...","position":0}
 - {"op":"remove_stop","stopId":"..."}
 - {"op":"set_leg","fromStopId":"...","mode":"transit","durationMin?":25,"departureTime?":"14:03","arrivalTime?":"14:28","transit?":{"summary":"JR山手線","steps":[...],"fare":"¥170"},"notes?":"...","bookingType?":"ticket_required","bookingStatus?":"not_booked","booking?":{"url":"...","deadline?":"YYYY-MM-DD","note?":"..."}} 交通段掛在出發地點上,目的地自動是下一站。mode:walk|transit|drive|taxi|bike|flight|other。**新幹線/機場快線/特急指定席等要先買票的交通,設 bookingType(通常 ticket_required)並附訂票連結**,會出現在預約總覽與 PDF 清單

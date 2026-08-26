@@ -253,6 +253,10 @@ const MIGRATIONS: string[] = [
   ALTER TABLE legs ADD COLUMN booking_status TEXT NOT NULL DEFAULT 'not_booked';
   ALTER TABLE legs ADD COLUMN booking_json TEXT;
   `,
+  // v12 — 地點可排除於地圖視野計算(遠處機場等仍畫編號,但不縮小總覽)
+  `
+  ALTER TABLE stops ADD COLUMN exclude_from_fit INTEGER NOT NULL DEFAULT 0;
+  `,
 ];
 
 export function migrate(db: Database) {

@@ -57,10 +57,12 @@ function MapCanvas() {
     [doc, activeDayId],
   );
   const carryStop = carry && carry.stop.lat != null && carry.stop.lng != null ? carry.stop : null;
-  const fitStops = useMemo(
-    () => (carryStop ? [...located, carryStop] : located),
-    [located, carryStop],
-  );
+  // 視野計算排除標記為 excludeFromFit 的點(marker 照畫,總覽不被遠點撐大)
+  const fitStops = useMemo(() => {
+    const base = located.filter((s2) => !s2.excludeFromFit);
+    const withCarry = carryStop && !carryStop.excludeFromFit ? [...base, carryStop] : base;
+    return withCarry.length > 0 ? withCarry : located;
+  }, [located, carryStop]);
 
   const [poi, setPoi] = useState<{ placeId: string; lat: number; lng: number } | null>(null);
 

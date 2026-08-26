@@ -23,7 +23,7 @@ import {
   useSession,
   useTrip,
 } from "@/lib/workspace/WorkspaceProvider";
-import { ConfirmDialog, Hint, ImageLightbox, SegmentedChips, Tag } from "@/components/ui";
+import { ConfirmDialog, Hint, ImageLightbox, SegmentedChips, Switch, Tag } from "@/components/ui";
 import { BookingBadge, bookingWords, VerifyBadge } from "./badges";
 import { TimeField } from "./TimeField";
 
@@ -350,6 +350,20 @@ export function StopDetailPanel() {
         )}
 
         <BookingSection stop={stop} />
+
+        {stop.lat != null && (
+          <Hint tip={"打開後,地圖總覽的縮放範圍不再遷就這個點\n(適合很遠的機場/車站;地圖上仍會顯示它的編號)"}>
+            <div className="flex items-center justify-between rounded-lg bg-sunken px-3 py-2">
+              <span className="text-xs text-ink-soft">不納入地圖視野(仍顯示標記)</span>
+              <Switch
+                checked={stop.excludeFromFit}
+                onChange={(v) =>
+                  patch({ excludeFromFit: v }, `${stop.name} ${v ? "退出" : "納入"}地圖視野計算`)
+                }
+              />
+            </div>
+          </Hint>
+        )}
 
         <NotesEditor stop={stop} />
 

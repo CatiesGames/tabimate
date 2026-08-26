@@ -43,6 +43,7 @@ const stop = (
   bookingStatus: "not_booked",
   booking: null,
   nights: 1,
+  excludeFromFit: false,
   updatedAt: 0,
   updatedByUserId: null,
 });

@@ -77,6 +77,7 @@ function rowToStop(r: Record<string, unknown>): Stop {
     bookingStatus: r.booking_status as Stop["bookingStatus"],
     booking: r.booking_json ? JSON.parse(r.booking_json as string) : null,
     nights: (r.nights as number) ?? 1,
+    excludeFromFit: !!r.exclude_from_fit,
     updatedAt: r.updated_at as number,
     updatedByUserId: (r.updated_by_user_id as string) ?? null,
   };
@@ -159,8 +160,8 @@ function persistDoc(tripId: string, doc: ItinDoc, t: number) {
       t,
     );
   const insStop = db.prepare(
-    `INSERT INTO stops (id, day_id, position, name, category, start_time, end_time, place_id, lat, lng, address, place_json, notes, verify_status, verify_sources, verified_at, booking_type, booking_status, booking_json, nights, updated_at, updated_by_user_id)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    `INSERT INTO stops (id, day_id, position, name, category, start_time, end_time, place_id, lat, lng, address, place_json, notes, verify_status, verify_sources, verified_at, booking_type, booking_status, booking_json, nights, exclude_from_fit, updated_at, updated_by_user_id)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
   );
   for (const s of doc.stops) {
     insStop.run(
@@ -184,6 +185,7 @@ function persistDoc(tripId: string, doc: ItinDoc, t: number) {
       s.bookingStatus,
       s.booking ? JSON.stringify(s.booking) : null,
       s.nights ?? 1,
+      s.excludeFromFit ? 1 : 0,
       s.updatedAt,
       s.updatedByUserId,
     );

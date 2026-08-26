@@ -40,6 +40,7 @@ export type StopPatch = Partial<{
   bookingStatus: BookingStatus;
   booking: BookingInfo | null;
   nights: number;
+  excludeFromFit: boolean;
 }>;
 
 export type Operation =
@@ -347,6 +348,7 @@ export function applyOperations(
           bookingStatus: op.bookingStatus ?? "not_booked",
           booking: op.booking ?? null,
           nights: Math.max(1, Math.floor(op.nights ?? 1)),
+          excludeFromFit: false,
           updatedAt: meta.now,
           updatedByUserId: meta.actorUserId,
         });
@@ -373,6 +375,7 @@ export function applyOperations(
           }
           stop.category = p.category;
         }
+        if ("excludeFromFit" in p) stop.excludeFromFit = !!p.excludeFromFit;
         if ("startTime" in p) {
           checkTime(p.startTime, "startTime", i);
           stop.startTime = p.startTime ?? null;
