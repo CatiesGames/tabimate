@@ -205,7 +205,7 @@ function MessageList({ messages }: { messages: ChatMessage[] }) {
       <div
         ref={listRef}
         onScroll={onScroll}
-        className="tm-scroll flex h-full flex-col gap-3 overflow-y-auto px-3 py-3"
+        className="tm-scroll flex h-full flex-col gap-3 overflow-x-hidden overflow-y-auto px-3 py-3"
       >
         {messages.length === 0 && <EmptyChat />}
         {messages.map((m, i) => {
@@ -288,7 +288,7 @@ const MessageRow = function MessageRow({ message }: { message: ChatMessage }) {
             {message.status === "queued" && <Tag tone="neutral">排隊中</Tag>}
             {message.status === "stopped" && <Tag tone="neutral">已取消</Tag>}
           </p>
-          <div className="mt-0.5 rounded-lg rounded-tl-sm bg-sunken px-3 py-2 text-[13px] text-ink">
+          <div className="mt-0.5 rounded-lg rounded-tl-sm bg-sunken px-3 py-2 text-[13px] break-words [overflow-wrap:anywhere] text-ink">
             <MentionText content={message.content} mentions={message.mentions} />
             {message.attachmentIds.length > 0 && (
               <span className="mt-1.5 flex flex-wrap gap-1.5">

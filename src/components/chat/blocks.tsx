@@ -92,7 +92,7 @@ function inline(text: string, keyPrefix: string): React.ReactNode[] {
       );
     } else if (tok.startsWith("`")) {
       out.push(
-        <code key={key} className="rounded bg-sunken px-1 py-0.5 font-mono text-[0.85em]">
+        <code key={key} className="rounded bg-sunken px-1 py-0.5 font-mono text-[0.85em] break-all">
           {tok.slice(1, -1)}
         </code>,
       );
@@ -161,7 +161,7 @@ export function MiniMarkdown({ text }: { text: string }) {
     }
   }
   flushList();
-  return <div className="text-[13px] text-ink">{out}</div>;
+  return <div className="text-[13px] text-ink break-words [overflow-wrap:anywhere]">{out}</div>;
 }
 
 // ---- 工具狀態 ----
