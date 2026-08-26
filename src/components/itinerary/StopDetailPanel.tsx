@@ -306,6 +306,29 @@ export function StopDetailPanel() {
           </div>
         )}
 
+        {/* 沒有營業時間資料的地點(路口、街區、航廈…):查證來源獨立呈現,不然會看不到 */}
+        {(stop.place?.openingHours?.length ?? 0) === 0 && stop.verifySources.length > 0 && (
+          <div className="rounded-lg bg-sunken p-3">
+            <p className="mb-1.5 flex items-center justify-between text-xs font-medium text-ink-soft">
+              查證來源
+              <VerifyBadge stop={stop} />
+            </p>
+            <p className="flex flex-wrap gap-2 text-[11px]">
+              {stop.verifySources.map((s) => (
+                <a
+                  key={s.url}
+                  href={s.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-ocean-deep hover:underline"
+                >
+                  ↗ {s.title}
+                </a>
+              ))}
+            </p>
+          </div>
+        )}
+
         <BookingSection stop={stop} />
 
         <NotesEditor stop={stop} />
