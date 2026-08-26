@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import * as Popover from "@radix-ui/react-popover";
 import { Plus, Trash, X } from "@phosphor-icons/react";
 
@@ -160,20 +161,8 @@ export function LegEditor({
     setOpen(false);
   };
 
-  return (
-    <Popover.Root open={open} onOpenChange={onOpenChange}>
-      <Popover.Trigger asChild onClick={(e) => e.stopPropagation()}>
-        {children}
-      </Popover.Trigger>
-      <Popover.Portal>
-        <Popover.Content
-          side={narrow ? "bottom" : "right"}
-          align={narrow ? "center" : "start"}
-          sideOffset={8}
-          collisionPadding={10}
-          className="tm-pop-in tm-scroll z-30 max-h-[80vh] w-[min(380px,calc(100vw-20px))] overflow-y-auto rounded-xl border border-line bg-surface p-4 shadow-pop"
-          onClick={(e) => e.stopPropagation()}
-        >
+  const body = (
+    <>
           <p className="mb-3 text-[13px] font-medium text-ink">
             {stop.name} <span className="text-ink-faint">→</span> {nextStop.name}
             {leg?.needsReview && (
@@ -408,8 +397,48 @@ export function LegEditor({
               </Button>
             </div>
           </div>
-        </Popover.Content>
-      </Popover.Portal>
-    </Popover.Root>
+    </>
+  );
+
+  return (
+    <>
+      <Popover.Root open={open} onOpenChange={onOpenChange}>
+        <Popover.Trigger asChild onClick={(e) => e.stopPropagation()}>
+          {children}
+        </Popover.Trigger>
+        {!narrow && (
+          <Popover.Portal>
+            <Popover.Content
+              side="right"
+              align="start"
+              sideOffset={8}
+              collisionPadding={10}
+              className="tm-pop-in tm-scroll z-30 max-h-[80vh] w-[min(380px,calc(100vw-20px))] overflow-y-auto rounded-xl border border-line bg-surface p-4 shadow-pop"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {body}
+            </Popover.Content>
+          </Popover.Portal>
+        )}
+      </Popover.Root>
+      {/* 手機:底部抽屜(與詳細抽屜同語彙),不蓋底部導航 */}
+      {narrow &&
+        open &&
+        createPortal(
+          <div className="fixed inset-0 z-40">
+            <div
+              className="absolute inset-0 bg-ink/25 backdrop-blur-[1px]"
+              onMouseDown={() => onOpenChange(false)}
+            />
+            <div
+              className="tm-pop-in tm-scroll absolute inset-x-2 bottom-[calc(3.8rem+env(safe-area-inset-bottom))] max-h-[70dvh] overflow-y-auto rounded-xl border border-line bg-surface p-4 shadow-pop"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {body}
+            </div>
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Bed, MagnifyingGlass, MapPin, Plus } from "@phosphor-icons/react";
 
 import { apiFetch } from "@/lib/api";
@@ -64,10 +65,28 @@ export function AddStop({
   const [adding, setAdding] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
+  const hostRef = useRef<HTMLDivElement>(null);
+  // 展開呈現:桌面=懸浮於觸發位置(不推擠版面);手機=底部抽屜
+  const [narrow, setNarrow] = useState(false);
+  const [anchor, setAnchor] = useState<{ top: number; left: number; width: number } | null>(null);
+  const measureAnchor = () => {
+    setNarrow(window.innerWidth < 768);
+    const r = hostRef.current?.getBoundingClientRect();
+    if (r) {
+      setAnchor({
+        top: Math.min(r.top, Math.max(80, window.innerHeight - 420)),
+        left: r.left,
+        width: Math.max(r.width, 300),
+      });
+    }
+  };
 
-  // 間隙插入以搜尋模式直接展開:自動聚焦輸入框
+  // 間隙插入以搜尋模式直接展開:量錨點 + 自動聚焦輸入框
   useEffect(() => {
-    if (defaultOpen) setTimeout(() => inputRef.current?.focus(), 30);
+    if (defaultOpen) {
+      measureAnchor();
+      setTimeout(() => inputRef.current?.focus(), 30);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -246,22 +265,25 @@ export function AddStop({
 
   if (mode === "idle") {
     return (
-      <button
-        onClick={() => {
-          setMode("search");
-          setTimeout(() => inputRef.current?.focus(), 30);
-        }}
-        className="tm-focus flex w-full select-none items-center justify-center gap-1.5 rounded-lg border border-dashed border-line-strong py-2.5 text-sm text-ink-faint transition-colors hover:border-coral hover:bg-coral-wash/40 hover:text-coral-deep"
-      >
-        <Plus weight="bold" className="size-4" />
-        新增地點
-      </button>
+      <div ref={hostRef}>
+        <button
+          onClick={() => {
+            measureAnchor();
+            setMode("search");
+            setTimeout(() => inputRef.current?.focus(), 30);
+          }}
+          className="tm-focus flex w-full select-none items-center justify-center gap-1.5 rounded-lg border border-dashed border-line-strong py-2.5 text-sm text-ink-faint transition-colors hover:border-coral hover:bg-coral-wash/40 hover:text-coral-deep"
+        >
+          <Plus weight="bold" className="size-4" />
+          新增地點
+        </button>
+      </div>
     );
   }
 
-  if (mode === "manual") {
-    return (
-      <div ref={boxRef}>
+  const panelBody =
+    mode === "manual" ? (
+      <div ref={boxRef} className="rounded-lg border border-line bg-surface shadow-pop">
         <ManualForm
           dayId={dayId}
           position={position}
@@ -272,10 +294,44 @@ export function AddStop({
           }}
         />
       </div>
+    ) : (
+      searchBody()
     );
-  }
 
   return (
+    <div ref={hostRef}>
+      {createPortal(
+        narrow ? (
+          <div className="fixed inset-0 z-40">
+            <div
+              className="absolute inset-0 bg-ink/25 backdrop-blur-[1px]"
+              onMouseDown={() => setMode("idle")}
+            />
+            <div className="tm-pop-in absolute inset-x-2 bottom-[calc(3.8rem+env(safe-area-inset-bottom))] max-h-[70dvh] overflow-y-auto">
+              {panelBody}
+            </div>
+          </div>
+        ) : (
+          <div
+            style={{
+              position: "fixed",
+              top: anchor?.top ?? 120,
+              left: anchor?.left ?? 0,
+              width: anchor?.width ?? 320,
+              zIndex: 40,
+            }}
+            className="tm-pop-in max-h-[min(70dvh,480px)] overflow-y-auto"
+          >
+            {panelBody}
+          </div>
+        ),
+        document.body,
+      )}
+    </div>
+  );
+
+  function searchBody() {
+    return (
     <div ref={boxRef} className="tm-pop-in rounded-lg border border-line bg-surface p-2 shadow-lift">
       <div className="relative">
         <MagnifyingGlass className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-ink-faint" />
@@ -369,6 +425,7 @@ export function AddStop({
       </button>
     </div>
   );
+  }
 }
 
 function ManualForm({
