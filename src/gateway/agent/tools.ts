@@ -32,7 +32,7 @@ const OPERATIONS_DOC = `每個 operation 是一個物件,op 欄位決定種類:
 - {"op":"update_trip","patch":{"title?","destination?","startDate?":"YYYY-MM-DD"}}
 dayId/stopId 用 get_itinerary 回傳的真實 id;同一批內先新增的實體可用 "$tempId" 引用。
 booking 物件欄位:platform/url/confirmationCode/price/onSaleDate/deadline/note。
-bookingType:none|reservation_required(不訂進不去)|ticket_required(要先買票)|recommended(建議預約)|walk_in_queue(現場排隊)。
+bookingType:none|reservation_required(不訂進不去)|ticket_required(要先買票)|recommended(建議預約)|walk_in_queue(現場排隊)。**bookingStatus 預設 not_booked,絕不自行帶 booked/unavailable**(只有成員明說已訂好才可,提案卡會醒目標示這類變更)。
 住宿跨夜語意(平台特例,務必理解):
 - lodging 的 startTime=入住、endTime=「退房日早上的退房時間」(可早於 startTime,合法);**nights=住幾晚**(如 D1 入住住到 D4 晚、D5 退房 → nights:4)。住宿只放在入住那天並設好 nights,不要在其他天重複新增同一間。
 - 續住的每一天,畫面會自動在當天「最上方」顯示住宿錨點(昨晚住這)、中間天「最下方」也有(今晚回這裡住)。這些錨點不是 stop,對應資料存在那一天(day)上:

@@ -759,8 +759,10 @@ function OpRow({
       break;
     case "add_stop":
       icon = <span className="font-bold text-leaf">＋</span>;
-      text = `新增「${op.name}」${op.startTime ? ` ${op.startTime}` : ""}`;
-      tone = "text-leaf-deep";
+      text = `新增「${op.name}」${op.startTime ? ` ${op.startTime}` : ""}${
+        op.bookingStatus === "booked" ? " ⚠ 直接標為已預約/已購票" : ""
+      }`;
+      tone = op.bookingStatus === "booked" ? "text-alert" : "text-leaf-deep";
       break;
     case "remove_stop":
       icon = <span className="font-bold text-alert">－</span>;
@@ -777,7 +779,14 @@ function OpRow({
       const p = op.patch as Record<string, unknown>;
       const parts: string[] = [];
       if (p.startTime) parts.push(`時間 ${p.startTime}`);
-      if (p.bookingType) parts.push("預約標記");
+      if (p.bookingStatus === "booked") {
+        parts.push("⚠ 標為已預約/已購票");
+        tone = "text-alert";
+      } else if (p.bookingStatus === "unavailable") {
+        parts.push("標為訂不到");
+      } else if (p.bookingType) {
+        parts.push("預約標記");
+      }
       if (p.notes) parts.push("備註");
       if (p.name) parts.push(`改名「${p.name}」`);
       text = `更新「${nameOf(op.stopId)}」${parts.length ? `:${parts.join("、")}` : ""}`;
@@ -785,8 +794,17 @@ function OpRow({
     }
     case "set_leg":
       icon = <span className="text-ocean">⇢</span>;
-      text = `設定「${nameOf(op.fromStopId)}」出發交通${op.departureTime ? `(${op.departureTime} 出發)` : ""}`;
-      tone = "text-ocean-deep";
+      text = `設定「${nameOf(op.fromStopId)}」出發交通${op.departureTime ? `(${op.departureTime} 出發)` : ""}${
+        op.bookingStatus === "booked" ? " ⚠ 直接標為已購票" : ""
+      }`;
+      tone = op.bookingStatus === "booked" ? "text-alert" : "text-ocean-deep";
+      break;
+    case "set_leg_booking":
+      icon = <span className="text-ink-faint">✎</span>;
+      text = `更新「${nameOf(op.fromStopId)}」出發交通的購票${
+        op.bookingStatus === "booked" ? " ⚠ 標為已購票" : ""
+      }`;
+      if (op.bookingStatus === "booked") tone = "text-alert";
       break;
     case "remove_leg":
       icon = <span className="font-bold text-alert">－</span>;
