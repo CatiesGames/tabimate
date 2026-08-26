@@ -78,8 +78,16 @@ export function AddStop({
   const restHotel = (() => {
     if (!doc) return null;
     const carry = carryOverLodging(doc.days, doc.stops, dayId);
-    if (carry) return carry.stop;
-    return primaryLodgingOf(doc.days, doc.stops, dayId);
+    // 退房日行李已退,不提供「回飯店休息」
+    if (carry) return carry.isCheckoutDay ? null : carry.stop;
+    const primary = primaryLodgingOf(doc.days, doc.stops, dayId);
+    if (!primary) return null;
+    // check-in(主卡)之前的位置不提供(還沒入住)
+    const ordered = doc.stops
+      .filter((s) => s.dayId === dayId)
+      .sort((a, b) => a.position - b.position);
+    const insertAt = position ?? ordered.length;
+    return insertAt > ordered.indexOf(primary) ? primary : null;
   })();
 
   const addRest = async () => {
@@ -378,8 +386,20 @@ function ManualForm({
   const ordered = (doc?.stops ?? [])
     .filter((s) => s.dayId === dayId)
     .sort((a, b) => a.position - b.position);
-  // 指定插入位置時,「前一項」是插入點的前一個(否則是當天最後一個)
-  const lastStop = position != null ? ordered[position - 1] : ordered.at(-1);
+  // 插入點的前後項:前段交通抵達 > 前一項結束/開始 > 後一項開始(標「銜接後一項」)
+  const prevStop = position != null ? ordered[position - 1] : ordered.at(-1);
+  const nextStop = position != null ? (ordered[position] ?? null) : null;
+  const prevLeg = prevStop
+    ? (doc?.legs ?? []).find((l) => l.fromStopId === prevStop.id) ?? null
+    : null;
+  const timeDefault =
+    prevLeg?.arrivalTime ?? prevStop?.endTime ?? prevStop?.startTime ?? nextStop?.startTime ?? null;
+  const timeLabel =
+    prevLeg?.arrivalTime || prevStop?.endTime || prevStop?.startTime
+      ? "接續前一項"
+      : nextStop?.startTime
+        ? "銜接後一項"
+        : null;
   const [name, setName] = useState(initialName.trim());
   const [category, setCategory] = useState<StopCategory>("sight");
   const [time, setTime] = useState<string | null>(null);
@@ -424,7 +444,8 @@ function ManualForm({
           value={time}
           onChange={setTime}
           placeholder="時間"
-          defaultTime={lastStop?.endTime ?? lastStop?.startTime ?? null}
+          defaultTime={timeDefault}
+          defaultLabel={timeLabel}
         />
         <div className="flex gap-2">
           <Button size="sm" variant="ghost" onClick={onDone}>

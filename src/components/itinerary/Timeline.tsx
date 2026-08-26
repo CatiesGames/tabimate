@@ -36,7 +36,7 @@ export function Timeline() {
 
   const listRef = useRef<HTMLDivElement>(null);
   const suppressClick = useRef(false);
-  const [gapAdd, setGapAdd] = useState<number | null>(null);
+  const [gapAdd, setGapAdd] = useState<string | null>(null);
   const [dragging, setDragging] = useState<{
     stopId: string;
     fromIndex: number;
@@ -121,6 +121,43 @@ export function Timeline() {
 
   const carryLodging = carryOverLodging(doc.days, doc.stops, activeDayId);
   const activeDay = doc.days.find((d) => d.id === activeDayId) ?? null;
+  // 統一間隙列:每個地點/交通之間都是「+安排交通 +新增地點」;點新增就地展開插入
+  const renderGap = (gapKey: string, insertPos: number | undefined, legTrigger: React.ReactNode) => (
+    <>
+      <div className="flex py-1 pl-[1.35rem]">
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 border-l-2 border-dotted border-line-strong py-0.5 pl-4">
+          {legTrigger}
+          <button
+            aria-label="在此插入行程"
+            onClick={() => setGapAdd(gapAdd === gapKey ? null : gapKey)}
+            className="tm-focus flex shrink-0 items-center gap-1 rounded-full border border-dashed border-line-strong px-3 py-1.5 text-xs text-ink-soft transition-[color,border-color,background-color] hover:border-coral hover:bg-coral-wash hover:text-coral-deep"
+          >
+            <Plus weight="bold" className="size-3.5" />
+            新增地點
+          </button>
+        </div>
+      </div>
+      {gapAdd === gapKey && (
+        <div className="mb-2 pl-[1.35rem]">
+          <AddStop
+            dayId={activeDayId}
+            position={insertPos}
+            defaultOpen
+            onIdle={() => setGapAdd(null)}
+          />
+        </div>
+      )}
+    </>
+  );
+  const transitPill = (stop2: Stop, next2: Stop, leg2: Leg | null) => (
+    <LegEditor stop={stop2} nextStop={next2} leg={leg2}>
+      <button className="tm-focus flex shrink-0 items-center gap-1 rounded-full border border-dashed border-line-strong px-3 py-1.5 text-xs text-ink-soft transition-[color,border-color,background-color] hover:border-ocean hover:bg-ocean-wash hover:text-ocean-deep">
+        <Plus weight="bold" className="size-3.5" />
+        安排交通
+      </button>
+    </LegEditor>
+  );
+
   // 住宿主卡(入住日第一張 lodging):主卡不在末位時,結尾自動出現「今晚回這裡住」錨列
   const primaryStop = primaryLodgingOf(doc.days, doc.stops, activeDayId);
   const checkinMidday =
@@ -135,7 +172,22 @@ export function Timeline() {
           edge="top"
           day={activeDay}
           adjacentStop={stops[0] ?? null}
+          insertPill={
+            <button
+              aria-label="在此插入行程"
+              onClick={() => setGapAdd(gapAdd === "head" ? null : "head")}
+              className="tm-focus flex shrink-0 items-center gap-1 rounded-full border border-dashed border-line-strong px-3 py-1.5 text-xs text-ink-soft transition-[color,border-color,background-color] hover:border-coral hover:bg-coral-wash hover:text-coral-deep"
+            >
+              <Plus weight="bold" className="size-3.5" />
+              新增地點
+            </button>
+          }
         />
+      )}
+      {gapAdd === "head" && (
+        <div className="mb-2 pl-[1.35rem]">
+          <AddStop dayId={activeDayId} position={0} defaultOpen onIdle={() => setGapAdd(null)} />
+        </div>
       )}
       {stops.length === 0 && (
         <p className="rounded-lg border border-dashed border-line-strong px-4 py-6 text-center text-[13px] text-ink-faint">
@@ -285,11 +337,12 @@ export function Timeline() {
               <StopThumb stop={stop} className="size-14 shrink-0" />
             </div>
 
-            {/* 交通段 + 行程間插入 */}
-            {nextStop && (
-              <div className="flex py-2 pl-[1.35rem]">
-                <div className="flex min-w-0 flex-1 items-center gap-1.5 border-l-2 border-dotted border-line-strong py-0.5 pl-4">
-                  {leg ? (
+            {/* 間隙:地點-交通-地點 之間都有 +安排交通 +新增地點 */}
+            {nextStop && leg && (
+              <>
+                {renderGap(`g${i}-a`, i + 1, transitPill(stop, nextStop, leg))}
+                <div className="flex pl-[1.35rem]">
+                  <div className="flex min-w-0 flex-1 items-center border-l-2 border-dotted border-line-strong py-0.5 pl-4">
                     <LegEditor stop={stop} nextStop={nextStop} leg={leg}>
                       <button
                         className={cn(
@@ -310,43 +363,18 @@ export function Timeline() {
                         <LegSummary leg={leg} muted={leg.needsReview} />
                       </button>
                     </LegEditor>
-                  ) : (
-                    <LegEditor stop={stop} nextStop={nextStop} leg={null}>
-                      <button className="tm-focus flex items-center gap-1 rounded-full border border-dashed border-line-strong px-3 py-1.5 text-xs text-ink-soft transition-[color,border-color,background-color] hover:border-ocean hover:bg-ocean-wash hover:text-ocean-deep">
-                        <Plus weight="bold" className="size-3.5" />
-                        安排交通
-                      </button>
-                    </LegEditor>
-                  )}
-                  <button
-                    aria-label="在此插入行程"
-                    onClick={() => setGapAdd(gapAdd === i + 1 ? null : i + 1)}
-                    className="tm-focus flex shrink-0 items-center gap-1 rounded-full border border-dashed border-line-strong px-3 py-1.5 text-xs text-ink-soft transition-[color,border-color,background-color] hover:border-coral hover:bg-coral-wash hover:text-coral-deep"
-                  >
-                    <Plus weight="bold" className="size-3.5" />
-                    新增地點
-                  </button>
+                  </div>
                 </div>
-              </div>
+                {renderGap(`g${i}-b`, i + 1, transitPill(stop, nextStop, leg))}
+              </>
             )}
-            {gapAdd === i + 1 && nextStop && (
-              <div className="mb-2 pl-[1.35rem]">
-                <AddStop
-                  dayId={activeDayId}
-                  position={i + 1}
-                  defaultOpen
-                  onIdle={() => setGapAdd(null)}
-                />
-              </div>
-            )}
+            {nextStop && !leg && renderGap(`g${i}`, i + 1, transitPill(stop, nextStop, null))}
           </div>
           </div>
         );
       })}
 
-      <div className="mt-2">
-        <AddStop dayId={activeDayId} />
-      </div>
+      {renderGap("end", undefined, null)}
 
       {/* 一天的結尾是回住宿:續住中間天,或入住日先放了行李(住宿不在末位) */}
       {activeDay &&
@@ -379,11 +407,14 @@ function CarryLodgingRow({
   edge,
   day,
   adjacentStop,
+  insertPill,
 }: {
   carry: NonNullable<ReturnType<typeof carryOverLodging>>;
   edge: "top" | "bottom";
   day: Day;
   adjacentStop: Stop | null;
+  /** 「+新增地點」膠囊(頭錨列間隙用,由 Timeline 傳入)。 */
+  insertPill?: React.ReactNode;
 }) {
   const { editOps } = useTrip();
   const { setSelectedStop } = useSelection();
@@ -425,7 +456,7 @@ function CarryLodgingRow({
 
   const legChip = adjacentStop && (
     <div className={cn("flex pl-[1.35rem]", isTop ? "pb-2" : "pt-2")}>
-      <div className="flex min-w-0 flex-1 items-center border-l-2 border-dotted border-line-strong py-0.5 pl-4">
+      <div className="flex min-w-0 flex-1 items-center gap-1.5 border-l-2 border-dotted border-line-strong py-0.5 pl-4">
         <LegEditor
           stop={isTop ? hotelAsFrom : adjacentStop}
           nextStop={isTop ? adjacentStop : hotelAsTo}
@@ -444,6 +475,7 @@ function CarryLodgingRow({
             </button>
           )}
         </LegEditor>
+        {insertPill}
       </div>
     </div>
   );
