@@ -95,13 +95,16 @@ export function registerGoogleRoutes() {
       trip_id: string;
     } | null;
     if (!day || day.trip_id !== user.trip_id) throw new HttpError(404, "day_not_found");
+    // scope=main 時排除「不納入視野」的遠點(機場等),呈現主要活動區
+    const scope = ctx.url.searchParams.get("scope") === "main" ? "main" : "all";
     const allRows = db
-      .query("SELECT lat, lng FROM stops WHERE day_id = ? ORDER BY position")
-      .all(dayId) as Array<{ lat: number | null; lng: number | null }>;
+      .query("SELECT lat, lng, exclude_from_fit FROM stops WHERE day_id = ? ORDER BY position")
+      .all(dayId) as Array<{ lat: number | null; lng: number | null; exclude_from_fit: number }>;
     // 編號 = 時間軸全列表序號(無座標的卡佔號但不畫),兩邊對得上
     const pts = allRows
-      .map((r, i) => ({ lat: r.lat, lng: r.lng, n: i + 1 }))
-      .filter((r): r is { lat: number; lng: number; n: number } => r.lat != null && r.lng != null);
+      .map((r, i) => ({ lat: r.lat, lng: r.lng, n: i + 1, ex: !!r.exclude_from_fit }))
+      .filter((r): r is { lat: number; lng: number; n: number; ex: boolean } => r.lat != null && r.lng != null)
+      .filter((r) => scope === "all" || !r.ex);
     if (pts.length === 0) throw new HttpError(404, "no_located_stops");
     // 續住日把住宿也畫進地圖(起點/終點)
     const { doc } = loadDoc(day.trip_id);

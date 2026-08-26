@@ -168,18 +168,37 @@ export function PrintView({ tripId }: { tripId: string }) {
               {day.title && <span className="text-sm text-ink-soft">{day.title}</span>}
             </h2>
 
-            {/* 當天地圖:編號 marker 依行程順序連線,一眼看出移動方向 */}
-            {googleReady && stops.some((st) => st.lat != null && st.lng != null) && (
-              <img
-                src={`/api/google/staticmap?day=${day.id}`}
-                alt={`Day ${di + 1} 地圖`}
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).style.display = "none";
-                }}
-                className="mb-2 w-full rounded-lg border border-line object-cover"
-                style={{ printColorAdjust: "exact" }}
-              />
-            )}
+            {/* 當天地圖:編號 marker 依行程順序連線。有「不納入視野」的遠點(機場等)時
+                出兩張:全程圖(含遠點,看得出機場→市區)+ 主要區域圖(市區分佈) */}
+            {googleReady &&
+              stops.some((st) => st.lat != null && st.lng != null) &&
+              (() => {
+                const hasFar = stops.some((st) => st.excludeFromFit && st.lat != null);
+                const mapImg = (scope: "all" | "main", label: string | null) => (
+                  <div key={scope} className="mb-2">
+                    {label && (
+                      <p className="mb-0.5 text-[10px] font-medium text-ink-faint">{label}</p>
+                    )}
+                    <img
+                      src={`/api/google/staticmap?day=${day.id}${scope === "main" ? "&scope=main" : ""}`}
+                      alt={`Day ${di + 1} 地圖`}
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).style.display = "none";
+                      }}
+                      className="w-full rounded-lg border border-line object-cover"
+                      style={{ printColorAdjust: "exact" }}
+                    />
+                  </div>
+                );
+                return hasFar ? (
+                  <>
+                    {mapImg("all", "全程(含遠程點)")}
+                    {mapImg("main", "主要活動區域")}
+                  </>
+                ) : (
+                  mapImg("all", null)
+                );
+              })()}
             {(() => {
               const carry = carryOverLodging(days, doc.stops, day.id);
               if (!carry) return null;
