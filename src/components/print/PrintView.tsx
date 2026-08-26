@@ -53,7 +53,22 @@ export function PrintView({ tripId }: { tripId: string }) {
   const days = [...doc.days].sort((a, b) => a.position - b.position);
   const legOf = (stopId: string): Leg | undefined =>
     doc.legs.find((l) => l.fromStopId === stopId);
-  const bookings = doc.stops.filter((s) => s.bookingType !== "none");
+  const stopById2 = new Map(doc.stops.map((s) => [s.id, s]));
+  const bookings = [
+    ...doc.stops
+      .filter((s) => s.bookingType !== "none")
+      .map((s) => ({ id: s.id, name: s.name, dayId: s.dayId, bookingType: s.bookingType, bookingStatus: s.bookingStatus, booking: s.booking })),
+    ...doc.legs
+      .filter((l) => l.bookingType !== "none")
+      .map((l) => ({
+        id: l.id,
+        name: `${stopById2.get(l.fromStopId)?.name ?? "?"} → ${stopById2.get(l.toStopId)?.name ?? "?"}(交通)`,
+        dayId: stopById2.get(l.fromStopId)?.dayId ?? "",
+        bookingType: l.bookingType,
+        bookingStatus: l.bookingStatus,
+        booking: l.booking,
+      })),
+  ];
   const dayIndexOf = new Map(days.map((d, i) => [d.id, i]));
 
   return (
@@ -384,6 +399,9 @@ function CarryLegRow({ leg }: { leg: CarryLeg }) {
         toStopId: "",
         distanceM: null,
         needsReview: false,
+        bookingType: "none" as const,
+        bookingStatus: "not_booked" as const,
+        booking: null,
         updatedAt: 0,
         ...leg,
       }}

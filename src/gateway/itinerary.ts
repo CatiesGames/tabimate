@@ -96,6 +96,9 @@ function rowToLeg(r: Record<string, unknown>): Leg {
     transit: r.transit_json ? JSON.parse(r.transit_json as string) : null,
     notes: (r.notes as string) ?? "",
     needsReview: !!r.needs_review,
+    bookingType: (r.booking_type as Leg["bookingType"]) ?? "none",
+    bookingStatus: (r.booking_status as Leg["bookingStatus"]) ?? "not_booked",
+    booking: r.booking_json ? JSON.parse(r.booking_json as string) : null,
     updatedAt: r.updated_at as number,
   };
 }
@@ -186,8 +189,8 @@ function persistDoc(tripId: string, doc: ItinDoc, t: number) {
     );
   }
   const insLeg = db.prepare(
-    `INSERT INTO legs (id, trip_id, from_stop_id, to_stop_id, mode, duration_min, distance_m, departure_time, arrival_time, transit_json, notes, needs_review, updated_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    `INSERT INTO legs (id, trip_id, from_stop_id, to_stop_id, mode, duration_min, distance_m, departure_time, arrival_time, transit_json, notes, needs_review, booking_type, booking_status, booking_json, updated_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
   );
   for (const l of doc.legs) {
     insLeg.run(
@@ -203,6 +206,9 @@ function persistDoc(tripId: string, doc: ItinDoc, t: number) {
       l.transit ? JSON.stringify(l.transit) : null,
       l.notes,
       l.needsReview ? 1 : 0,
+      l.bookingType ?? "none",
+      l.bookingStatus ?? "not_booked",
+      l.booking ? JSON.stringify(l.booking) : null,
       l.updatedAt,
     );
   }

@@ -34,11 +34,13 @@ export function DayTabs() {
         const viewers = viewersOfDay(day.id);
         const dateLabel = dayDateLabel(doc.trip.startDate, day.position);
         const dayStops = doc.stops.filter((s) => s.dayId === day.id);
-        const unbooked = dayStops.filter(
-          (s) =>
-            (s.bookingType === "reservation_required" || s.bookingType === "ticket_required") &&
-            s.bookingStatus === "not_booked",
-        ).length;
+        const dayStopIds = new Set(dayStops.map((s2) => s2.id));
+        const needsBooking = (x: { bookingType: string; bookingStatus: string }) =>
+          (x.bookingType === "reservation_required" || x.bookingType === "ticket_required") &&
+          x.bookingStatus === "not_booked";
+        const unbooked =
+          dayStops.filter(needsBooking).length +
+          doc.legs.filter((l) => dayStopIds.has(l.fromStopId) && needsBooking(l)).length;
         const conflicted = dayStops.filter((s) => conflicts.has(s.id)).length;
         const warnings: string[] = [];
         if (unbooked > 0) warnings.push(`${unbooked} 個必要預約/購票還沒完成`);

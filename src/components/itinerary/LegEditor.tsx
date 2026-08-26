@@ -47,6 +47,10 @@ export function LegEditor({
   /** 路線名稱/說明(chip 上顯示的文字,如「東武晴空塔線 淺草→…」)— 與塔比寫入的同一欄位。 */
   const [summaryText, setSummaryText] = useState("");
   const [extras, setExtras] = useState<{ fare?: string; polyline?: string }>({});
+  // 購票(新幹線/機場快線/指定席…):與地點預約同一套語意;住宿頭尾交通不支援
+  const [bkType, setBkType] = useState<"none" | "ticket_required" | "recommended">("none");
+  const [bkStatus, setBkStatus] = useState<"not_booked" | "booked" | "unavailable">("not_booked");
+  const [bkUrl, setBkUrl] = useState("");
 
   const onOpenChange = (o: boolean) => {
     setOpen(o);
@@ -59,6 +63,15 @@ export function LegEditor({
       setNotes(leg?.notes ?? "");
       setSummaryText(leg?.transit?.summary ?? "");
       setExtras({ fare: leg?.transit?.fare, polyline: leg?.transit?.polyline });
+      setBkType(
+        leg?.bookingType === "ticket_required" || leg?.bookingType === "recommended"
+          ? leg.bookingType
+          : leg?.bookingType && leg.bookingType !== "none"
+            ? "ticket_required"
+            : "none",
+      );
+      setBkStatus(leg?.bookingStatus ?? "not_booked");
+      setBkUrl(leg?.booking?.url ?? "");
       setSegs(
         (leg?.transit?.steps ?? []).map((s) => ({
           mode: (LEG_MODES as readonly string[]).includes(s.mode as string)
@@ -125,7 +138,16 @@ export function LegEditor({
       saveOverride(payload);
     } else {
       editOps(
-        [{ op: "set_leg", fromStopId: stop.id, ...payload }],
+        [
+          {
+            op: "set_leg",
+            fromStopId: stop.id,
+            ...payload,
+            bookingType: bkType,
+            bookingStatus: bkType === "none" ? "not_booked" : bkStatus,
+            booking: bkUrl.trim() ? { ...(leg?.booking ?? {}), url: bkUrl.trim() } : (leg?.booking ?? null),
+          },
+        ],
         `調整 ${stop.name} → ${nextStop.name} 交通`,
       );
     }
@@ -324,6 +346,47 @@ export function LegEditor({
             placeholder="備註(如:搭到尾班車、IC 卡)"
             className="mt-2 !h-8 text-[13px]"
           />
+
+          {/* 購票:新幹線/機場快線/指定席等要先買票的交通 */}
+          {!saveOverride && (
+            <div className="mt-2.5 rounded-lg bg-sunken/50 p-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-ink-faint">購票</span>
+                <SegmentedChips
+                  size="sm"
+                  options={[
+                    { value: "none" as const, label: "免購票" },
+                    { value: "ticket_required" as const, label: "需購票" },
+                    { value: "recommended" as const, label: "建議預約" },
+                  ]}
+                  value={bkType}
+                  onChange={setBkType}
+                />
+              </div>
+              {bkType !== "none" && (
+                <>
+                  <div className="mt-1.5">
+                    <SegmentedChips
+                      size="sm"
+                      options={[
+                        { value: "not_booked" as const, label: "未購票" },
+                        { value: "booked" as const, label: "已購票 ✓" },
+                        { value: "unavailable" as const, label: "買不到" },
+                      ]}
+                      value={bkStatus}
+                      onChange={setBkStatus}
+                    />
+                  </div>
+                  <Input
+                    value={bkUrl}
+                    onChange={(e) => setBkUrl(e.target.value)}
+                    placeholder="訂票連結(選填)"
+                    className="mt-1.5 !h-8 text-[13px]"
+                  />
+                </>
+              )}
+            </div>
+          )}
           <div className="mt-3 flex items-center justify-between">
             {leg ? (
               <button

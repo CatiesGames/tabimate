@@ -247,6 +247,12 @@ const MIGRATIONS: string[] = [
   `
   ALTER TABLE chat_messages ADD COLUMN mentions TEXT NOT NULL DEFAULT '[]';
   `,
+  // v11 — 交通段購票(新幹線/機場快線/指定席等):與地點預約同一套語意
+  `
+  ALTER TABLE legs ADD COLUMN booking_type TEXT NOT NULL DEFAULT 'none';
+  ALTER TABLE legs ADD COLUMN booking_status TEXT NOT NULL DEFAULT 'not_booked';
+  ALTER TABLE legs ADD COLUMN booking_json TEXT;
+  `,
 ];
 
 export function migrate(db: Database) {

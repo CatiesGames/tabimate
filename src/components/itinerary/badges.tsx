@@ -5,8 +5,11 @@ import { CalendarCheck, SealCheck, Ticket, Warning } from "@phosphor-icons/react
 import type { Stop } from "@/shared/types";
 import { Hint, Tag } from "@/components/ui";
 
+/** 可預約/購票的對象(stop 或交通 leg 共用)。 */
+export type Bookable = Pick<Stop, "bookingType" | "bookingStatus" | "booking">;
+
 /** 需購票類用「購票」詞,其餘用「預約」詞(需購票的狀態操作曾因字眼對不上被找不到)。 */
-export function bookingWords(stop: Stop) {
+export function bookingWords(stop: Bookable) {
   const ticket = stop.bookingType === "ticket_required";
   return {
     todo: ticket ? "未購票" : "未預約",
@@ -16,7 +19,7 @@ export function bookingWords(stop: Stop) {
 }
 
 /** 預約狀態 badge:免預約不顯示(不加噪音)。 */
-export function BookingBadge({ stop, size = "sm" }: { stop: Stop; size?: "sm" | "md" }) {
+export function BookingBadge({ stop, size = "sm" }: { stop: Bookable; size?: "sm" | "md" }) {
   if (stop.bookingType === "none") return null;
   const cls = size === "sm" ? "!px-1.5 !py-0 !text-[11px]" : "";
   const words = bookingWords(stop);

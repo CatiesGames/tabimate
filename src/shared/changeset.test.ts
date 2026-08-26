@@ -208,6 +208,34 @@ describe("applyOperations", () => {
     expect(notesOnly.legs[0].needsReview).toBe(false);
   });
 
+  test("交通購票:set_leg 帶購票欄位;set_leg_booking 只改狀態不清 needsReview", () => {
+    const doc = seedDoc();
+    const a = stopByName(doc, "A");
+    const { doc: withLeg } = apply(doc, [
+      {
+        op: "set_leg",
+        fromStopId: a.id,
+        mode: "transit",
+        bookingType: "ticket_required",
+        booking: { url: "https://example.com/ticket" },
+      },
+    ]);
+    expect(withLeg.legs[0].bookingType).toBe("ticket_required");
+    expect(withLeg.legs[0].booking?.url).toBe("https://example.com/ticket");
+    // 相鄰時間變更 → needsReview;set_leg_booking 改狀態不會清掉它
+    const b = stopByName(withLeg, "B");
+    const { doc: flagged } = apply(withLeg, [
+      { op: "update_stop", stopId: b.id, patch: { startTime: "11:00" } },
+      { op: "set_leg_booking", fromStopId: a.id, bookingStatus: "booked" },
+    ]);
+    expect(flagged.legs[0].bookingStatus).toBe("booked");
+    expect(flagged.legs[0].needsReview).toBe(true);
+    // 沒有交通段的地點 → 錯誤
+    expect(() =>
+      apply(doc, [{ op: "set_leg_booking", fromStopId: b.id, bookingStatus: "booked" }]),
+    ).toThrow();
+  });
+
   test("快照往返 id 穩定(回滾基礎)", () => {
     const doc = seedDoc();
     const snapshot = JSON.parse(JSON.stringify(doc)) as ItinDoc;

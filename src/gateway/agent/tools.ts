@@ -25,7 +25,8 @@ const OPERATIONS_DOC = `每個 operation 是一個物件,op 欄位決定種類:
 - {"op":"update_stop","stopId":"...","patch":{任意 stop 欄位,含 bookingType/bookingStatus/booking}}
 - {"op":"move_stop","stopId":"...","toDayId":"...","position":0}
 - {"op":"remove_stop","stopId":"..."}
-- {"op":"set_leg","fromStopId":"...","mode":"transit","durationMin?":25,"departureTime?":"14:03","arrivalTime?":"14:28","transit?":{"summary":"JR山手線","steps":[...],"fare":"¥170"},"notes?":"..."} 交通段掛在出發地點上,目的地自動是下一站。mode:walk|transit|drive|taxi|bike|flight|other
+- {"op":"set_leg","fromStopId":"...","mode":"transit","durationMin?":25,"departureTime?":"14:03","arrivalTime?":"14:28","transit?":{"summary":"JR山手線","steps":[...],"fare":"¥170"},"notes?":"...","bookingType?":"ticket_required","bookingStatus?":"not_booked","booking?":{"url":"...","deadline?":"YYYY-MM-DD","note?":"..."}} 交通段掛在出發地點上,目的地自動是下一站。mode:walk|transit|drive|taxi|bike|flight|other。**新幹線/機場快線/特急指定席等要先買票的交通,設 bookingType(通常 ticket_required)並附訂票連結**,會出現在預約總覽與 PDF 清單
+- {"op":"set_leg_booking","fromStopId":"...","bookingType?":"...","bookingStatus?":"booked","booking?":{...}} 只改交通購票標記/狀態,不動交通內容
 - {"op":"remove_leg","fromStopId":"..."}
 - {"op":"set_verification","stopId":"...","status":"verified|stale|unverified","sources":[{"url":"...","title":"...","checkedAt":0}]} — verified/stale **必須附至少一筆真實來源**(成員要能點開對照),否則整包提案會被拒
 - {"op":"update_trip","patch":{"title?","destination?","startDate?":"YYYY-MM-DD"}}

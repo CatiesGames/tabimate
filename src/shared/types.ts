@@ -109,6 +109,10 @@ export type Leg = {
   notes: string;
   /** 相鄰地點被移動/改時間後自動標記,提醒重新確認交通;set_leg 會清掉。 */
   needsReview: boolean;
+  /** 交通購票(新幹線/機場快線/指定席…):與 stop 預約同一套語意。 */
+  bookingType: BookingType;
+  bookingStatus: BookingStatus;
+  booking: BookingInfo | null;
   updatedAt: number;
 };
 

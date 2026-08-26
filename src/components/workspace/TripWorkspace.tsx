@@ -54,12 +54,11 @@ export function TripWorkspace() {
   const onlineMembers = roster
     .filter((r) => r.online && r.userId !== me.id)
     .map((r) => memberOf(r.userId));
+  const needsBooking = (x: { bookingType: string; bookingStatus: string }) =>
+    (x.bookingType === "reservation_required" || x.bookingType === "ticket_required") &&
+    x.bookingStatus === "not_booked";
   const unbookedCount =
-    doc?.stops.filter(
-      (s) =>
-        (s.bookingType === "reservation_required" || s.bookingType === "ticket_required") &&
-        s.bookingStatus === "not_booked",
-    ).length ?? 0;
+    (doc?.stops.filter(needsBooking).length ?? 0) + (doc?.legs.filter(needsBooking).length ?? 0);
 
   const logout = async () => {
     await apiFetch("/api/auth/logout", { json: {} });

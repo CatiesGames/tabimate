@@ -183,6 +183,9 @@ export function Timeline() {
           toStopId: "",
           distanceM: null,
           needsReview: false,
+          bookingType: "none" as const,
+          bookingStatus: "not_booked" as const,
+          booking: null,
           updatedAt: 0,
           ...carryLeg,
         }
@@ -421,6 +424,7 @@ export function Timeline() {
                             </span>
                           </Hint>
                         )}
+                        {leg.bookingType !== "none" && <BookingBadge stop={leg} />}
                         <LegSummary leg={leg} muted={leg.needsReview} />
                       </button>
                     </LegEditor>

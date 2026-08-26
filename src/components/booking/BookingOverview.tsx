@@ -3,6 +3,7 @@
 import { ArrowSquareOut, Ticket, X } from "@phosphor-icons/react";
 
 import { cn } from "@/lib/cn";
+import type { BookingStatus, BookingType } from "@/shared/config";
 import { dayDateLabel } from "@/lib/dates";
 import { useSelection, useTrip } from "@/lib/workspace/WorkspaceProvider";
 import { BookingBadge, bookingWords } from "@/components/itinerary/badges";
@@ -17,17 +18,61 @@ export function BookingOverview({ open, onClose }: { open: boolean; onClose: () 
   const days = [...doc.days].sort((a, b) => a.position - b.position);
   const dayIndexOf = new Map(days.map((d, i) => [d.id, i]));
 
-  const items = doc.stops
-    .filter((s) => s.bookingType !== "none")
-    .sort((a, b) => {
-      // 未訂在前,依截止日近→遠;已訂沉底
-      const rank = (s: typeof a) =>
-        s.bookingStatus === "booked" ? 2 : s.bookingStatus === "unavailable" ? 1 : 0;
-      if (rank(a) !== rank(b)) return rank(a) - rank(b);
-      const da = a.booking?.deadline ?? "9999";
-      const db = b.booking?.deadline ?? "9999";
-      return da.localeCompare(db);
-    });
+  const stopById = new Map(doc.stops.map((s) => [s.id, s]));
+  // 地點 + 交通(需購票的新幹線/機場快線等)一起列;統一形狀
+  type Item = {
+    kind: "stop" | "leg";
+    id: string;
+    name: string;
+    dayId: string;
+    startTime: string | null;
+    bookingType: BookingType;
+    bookingStatus: BookingStatus;
+    booking: (typeof doc.stops)[number]["booking"];
+    jumpStopId: string;
+    legFromStopId?: string;
+  };
+  const items: Item[] = [
+    ...doc.stops
+      .filter((s) => s.bookingType !== "none")
+      .map((s) => ({
+        kind: "stop" as const,
+        id: s.id,
+        name: s.name,
+        dayId: s.dayId,
+        startTime: s.startTime,
+        bookingType: s.bookingType,
+        bookingStatus: s.bookingStatus,
+        booking: s.booking,
+        jumpStopId: s.id,
+      })),
+    ...doc.legs
+      .filter((l) => l.bookingType !== "none")
+      .map((l) => {
+        const from = stopById.get(l.fromStopId);
+        const to = stopById.get(l.toStopId);
+        return {
+          kind: "leg" as const,
+          id: l.id,
+          name: `${from?.name ?? "?"} → ${to?.name ?? "?"}(交通)`,
+          dayId: from?.dayId ?? "",
+          startTime: l.departureTime,
+          bookingType: l.bookingType,
+          bookingStatus: l.bookingStatus,
+          booking: l.booking,
+          jumpStopId: l.fromStopId,
+          legFromStopId: l.fromStopId,
+        };
+      }),
+  ].sort((a, b) => {
+    // 未訂在前,依截止日近→遠;已訂沉底
+    const rank = (s: Item) =>
+      s.bookingStatus === "booked" ? 2 : s.bookingStatus === "unavailable" ? 1 : 0;
+    if (rank(a) !== rank(b)) return rank(a) - rank(b);
+    const da = a.booking?.deadline ?? "9999";
+    const db = b.booking?.deadline ?? "9999";
+    return da.localeCompare(db);
+  });
 
   return (
     <div className="fixed inset-0 z-40">
@@ -63,7 +108,7 @@ export function BookingOverview({ open, onClose }: { open: boolean; onClose: () 
                     (new Date(stop.booking.deadline).getTime() - Date.now()) / 86_400_000,
                   )
                 : null;
-              const words = bookingWords(stop);
+              const words = bookingWords(stop as never);
               return (
                 <li key={stop.id}>
                   <div
@@ -71,14 +116,14 @@ export function BookingOverview({ open, onClose }: { open: boolean; onClose: () 
                     tabIndex={0}
                     onClick={() => {
                       setActiveDay(stop.dayId);
-                      setSelectedStop(stop.id);
+                      setSelectedStop(stop.jumpStopId);
                       onClose();
                     }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
                         setActiveDay(stop.dayId);
-                        setSelectedStop(stop.id);
+                        setSelectedStop(stop.jumpStopId);
                         onClose();
                       }
                     }}
@@ -91,7 +136,7 @@ export function BookingOverview({ open, onClose }: { open: boolean; onClose: () 
                       <span className="min-w-0 truncate text-sm font-medium text-ink">
                         {stop.name}
                       </span>
-                      <BookingBadge stop={stop} />
+                      <BookingBadge stop={stop as never} />
                     </div>
                     <p className="mt-1 text-[11px] text-ink-faint">
                       Day {dayIdx + 1}
@@ -150,7 +195,19 @@ export function BookingOverview({ open, onClose }: { open: boolean; onClose: () 
                         value={stop.bookingStatus}
                         onChange={(status) =>
                           editOps(
-                            [{ op: "update_stop", stopId: stop.id, patch: { bookingStatus: status } }],
+                            [
+                              stop.kind === "leg"
+                                ? {
+                                    op: "set_leg_booking" as const,
+                                    fromStopId: stop.legFromStopId!,
+                                    bookingStatus: status,
+                                  }
+                                : {
+                                    op: "update_stop" as const,
+                                    stopId: stop.id,
+                                    patch: { bookingStatus: status },
+                                  },
+                            ],
                             `${stop.name} 標記為${status === "booked" ? words.done : status === "unavailable" ? words.fail : words.todo}`,
                           )
                         }

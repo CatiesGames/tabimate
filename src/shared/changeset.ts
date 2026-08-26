@@ -90,6 +90,17 @@ export type Operation =
       arrivalTime?: string | null;
       transit?: TransitDetail | null;
       notes?: string;
+      bookingType?: BookingType;
+      bookingStatus?: BookingStatus;
+      booking?: BookingInfo | null;
+    }
+  | {
+      /** 只改交通購票標記/狀態,不動交通內容、不清 needsReview。 */
+      op: "set_leg_booking";
+      fromStopId: Ref;
+      bookingType?: BookingType;
+      bookingStatus?: BookingStatus;
+      booking?: BookingInfo | null;
     }
   | { op: "remove_leg"; fromStopId: Ref }
   | { op: "set_verification"; stopId: Ref; status: VerifyStatus; sources: VerifySource[] }
@@ -456,6 +467,9 @@ export function applyOperations(
           transit: null,
           notes: "",
           needsReview: false,
+          bookingType: "none",
+          bookingStatus: "not_booked",
+          booking: null,
           updatedAt: meta.now,
         };
         leg.toStopId = next.id;
@@ -466,11 +480,46 @@ export function applyOperations(
         if ("arrivalTime" in op) leg.arrivalTime = op.arrivalTime ?? null;
         if ("transit" in op) leg.transit = op.transit ?? null;
         if (op.notes != null) leg.notes = op.notes;
+        if (op.bookingType != null) {
+          if (!BOOKING_TYPES.includes(op.bookingType)) {
+            throw new ChangesetError(`未知購票類型 ${op.bookingType}`, i);
+          }
+          leg.bookingType = op.bookingType;
+        }
+        if (op.bookingStatus != null) {
+          if (!BOOKING_STATUSES.includes(op.bookingStatus)) {
+            throw new ChangesetError(`未知購票狀態 ${op.bookingStatus}`, i);
+          }
+          leg.bookingStatus = op.bookingStatus;
+        }
+        if ("booking" in op) leg.booking = op.booking ?? null;
         leg.needsReview = false; // 重新設定 = 已確認
         leg.updatedAt = meta.now;
         if (!existing) doc.legs.push(leg);
         scope.stopIds.add(from.id);
         scope.stopIds.add(next.id);
+        break;
+      }
+      case "set_leg_booking": {
+        const from = getStop(op.fromStopId, i);
+        const leg = doc.legs.find((l) => l.fromStopId === from.id);
+        if (!leg) throw new ChangesetError("這個地點之後沒有交通段", i);
+        if (op.bookingType != null) {
+          if (!BOOKING_TYPES.includes(op.bookingType)) {
+            throw new ChangesetError(`未知購票類型 ${op.bookingType}`, i);
+          }
+          leg.bookingType = op.bookingType;
+        }
+        if (op.bookingStatus != null) {
+          if (!BOOKING_STATUSES.includes(op.bookingStatus)) {
+            throw new ChangesetError(`未知購票狀態 ${op.bookingStatus}`, i);
+          }
+          leg.bookingStatus = op.bookingStatus;
+        }
+        if ("booking" in op) leg.booking = op.booking ?? null;
+        leg.updatedAt = meta.now;
+        scope.stopIds.add(from.id);
+        scope.stopIds.add(leg.toStopId);
         break;
       }
       case "remove_leg": {
@@ -558,6 +607,12 @@ export function describeOps(ops: Operation[], before: ItinDoc): string {
         break;
       case "remove_stop":
         parts.push(`移除 ${nameOf(op.stopId)}`);
+        break;
+      case "set_leg_booking":
+        parts.push(`更新 ${nameOf(op.fromStopId)} 出發交通的購票`);
+        break;
+      case "set_leg_booking":
+        parts.push(`更新 ${nameOf(op.fromStopId)} 出發交通的購票`);
         break;
       case "set_leg":
         parts.push(`調整 ${nameOf(op.fromStopId)} 出發交通`);
