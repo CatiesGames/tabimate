@@ -145,6 +145,19 @@ describe("住宿跨夜", () => {
     expect(detectTimeConflicts([days[0], ok, days[2]], stops).has("b")).toBe(false);
   });
 
+  test("白天回飯店休息(起訖同日)不是過夜:不啟動續住、不影響原續住鏈", () => {
+    const stops = [
+      lodgingN("hotelA", "d1", 2, "20:00", "09:30"), // 真住宿:D1 入住住 2 晚
+      { ...stop("rest", "d2", 1, "14:00", "16:00", "lodging") }, // D2 中午回飯店休息
+      stop("x", "d2", 0, "10:00", "12:00"),
+    ];
+    // D2/D3 的續住仍指向 hotelA,不會被休息卡搶走
+    expect(carryOverLodging(days, stops, "d2")?.stop.id).toBe("hotelA");
+    expect(carryOverLodging(days, stops, "d3")?.stop.id).toBe("hotelA");
+    // 休息卡自身 end>start 不算自身衝突
+    expect(detectTimeConflicts(days, stops).has("rest")).toBe(false);
+  });
+
   test("入住日先放行李(住宿在中間):回到時間晚於最後行程才過", () => {
     const stops = [
       stop("a", "d1", 0, "13:00", "14:30"),

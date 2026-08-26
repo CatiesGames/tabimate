@@ -5,7 +5,12 @@ import { Bed, CaretRight, DotsSixVertical, Plus, Warning } from "@phosphor-icons
 
 import { CATEGORY_META, LEG_MODE_ICON } from "@/lib/categories";
 import { cn } from "@/lib/cn";
-import { carryOverLodging, detectTimeConflicts, isOvernightLodging } from "@/shared/conflicts";
+import {
+  carryOverLodging,
+  detectTimeConflicts,
+  isDayVisitLodging,
+  isOvernightLodging,
+} from "@/shared/conflicts";
 import type { CarryLeg, Day, Leg, Stop } from "@/shared/types";
 import {
   usePresence,
@@ -121,9 +126,11 @@ export function Timeline() {
   const activeDay = doc.days.find((d) => d.id === activeDayId) ?? null;
   // 入住日:住宿在當天末位時固定收尾,「新增地點」移到它上面(新地點插在住宿之前)
   const lastStop = stops[stops.length - 1] ?? null;
-  const endsWithLodging = lastStop?.category === "lodging";
+  const endsWithLodging =
+    !!lastStop && lastStop.category === "lodging" && !isDayVisitLodging(lastStop);
   // 先到飯店放行李、之後還有行程:當天結尾自動出現「今晚回這裡住」錨列
-  const checkinLodging = [...stops].reverse().find((s) => s.category === "lodging") ?? null;
+  const checkinLodging =
+    [...stops].reverse().find((s) => s.category === "lodging" && !isDayVisitLodging(s)) ?? null;
   const checkinMidday =
     checkinLodging && stops.indexOf(checkinLodging) < stops.length - 1 ? checkinLodging : null;
 

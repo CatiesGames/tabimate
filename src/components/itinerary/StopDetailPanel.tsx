@@ -14,7 +14,7 @@ import {
 } from "@phosphor-icons/react";
 
 import { CATEGORY_META } from "@/lib/categories";
-import { carryOverLodging, isOvernightLodging } from "@/shared/conflicts";
+import { carryOverLodging, isDayVisitLodging, isOvernightLodging } from "@/shared/conflicts";
 import { cn } from "@/lib/cn";
 import { STOP_CATEGORIES, type BookingStatus } from "@/shared/config";
 import type { Stop } from "@/shared/types";
@@ -133,7 +133,7 @@ export function StopDetailPanel() {
               defaultTime={startDefault}
             />
             <span className="text-ink-faint">
-              {stop.category === "lodging" ? "入住 →" : "-"}
+              {stop.category === "lodging" && !isDayVisitLodging(stop) ? "入住 →" : "-"}
             </span>
             <TimeField
               value={stop.endTime}
@@ -142,14 +142,14 @@ export function StopDetailPanel() {
               defaultLabel={null}
               placeholder={stop.category === "lodging" ? "退房" : "--:--"}
             />
-            {stop.category === "lodging" && (
+            {stop.category === "lodging" && !isDayVisitLodging(stop) && (
               <span className="text-[11px] text-ink-faint">
                 退房時間(隔天早上),會顯示在隔天的續住列
               </span>
             )}
           </div>
           <div className="flex items-center gap-1">
-            {stop.category === "lodging" ? (
+            {stop.category === "lodging" && !isDayVisitLodging(stop) ? (
               <>
                 {days.map((d, i) => {
                   const nights = Math.max(1, stop.nights ?? 1);

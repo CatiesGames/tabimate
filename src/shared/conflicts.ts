@@ -13,6 +13,20 @@ export function isOvernightLodging(stop: Stop): boolean {
   );
 }
 
+/**
+ * 白天回飯店休息(如 14:00-16:00 回去放戰利品/午休):
+ * lodging 但起訖在同一天內(endTime > startTime)。這種卡是普通行程,
+ * 不代表過夜、不啟動續住判定。過夜住宿 = 跨夜(end < start)或未填退房。
+ */
+export function isDayVisitLodging(stop: Stop): boolean {
+  return (
+    stop.category === "lodging" &&
+    !!stop.startTime &&
+    !!stop.endTime &&
+    toMin(stop.endTime) > toMin(stop.startTime)
+  );
+}
+
 export type CarryOverLodging = {
   stop: Stop;
   /** 這天是退房日(顯示退房時間;之後這間就不再延續)。 */
@@ -35,7 +49,7 @@ export function carryOverLodging(
   const dayIndexOf = new Map(ordered.map((d, i) => [d.id, i]));
   let best: { stop: Stop; checkinIdx: number } | null = null;
   for (const s of stops) {
-    if (s.category !== "lodging") continue;
+    if (s.category !== "lodging" || isDayVisitLodging(s)) continue;
     const checkinIdx = dayIndexOf.get(s.dayId);
     if (checkinIdx == null) continue;
     const nights = Math.max(1, s.nights ?? 1);
@@ -85,7 +99,9 @@ export function detectTimeConflicts(days: Day[], stops: Stop[]): Set<string> {
     }
     // 「晚上回住宿」的天(續住中間天,或入住日住宿不在末位=先放行李再出門):
     // 設定了回到時間時,最後一個有時間的行程結束得比它晚 → 衝突
-    const ownLodging = [...ordered].reverse().find((s2) => s2.category === "lodging");
+    const ownLodging = [...ordered]
+      .reverse()
+      .find((s2) => s2.category === "lodging" && !isDayVisitLodging(s2));
     const returnsToLodging =
       (carry && !carry.isCheckoutDay) ||
       (ownLodging && ordered.indexOf(ownLodging) < ordered.length - 1);
