@@ -83,12 +83,30 @@ function UpdateBanner({ wsStatus }: { wsStatus: string }) {
   );
 }
 
-/** 地點/交通詳細卡的統一出口:選了哪種就顯示哪張(桌面在地圖下、手機為底部抽屜)。 */
-function DetailHost() {
+/** 地點/交通詳細卡的統一出口:選了哪種就顯示哪張(桌面在地圖下、手機為行程頁底部抽屜)。 */
+function DetailHost({ onShowMap }: { onShowMap?: () => void }) {
   const { selectedStopId, selectedLegId } = useSelection();
-  if (selectedStopId) return <StopDetailPanel />;
-  if (selectedLegId) return <LegDetailPanel />;
+  if (selectedStopId) return <StopDetailPanel onShowMap={onShowMap} />;
+  if (selectedLegId) return <LegDetailPanel onShowMap={onShowMap} />;
   return null;
+}
+
+/** 手機:詳細卡抽屜(只在行程頁)— 黑幕蓋住其餘畫面,點旁邊即關閉;卡內可跳地圖頁。 */
+function MobileDetailDrawer({ onShowMap }: { onShowMap: () => void }) {
+  const { selectedStopId, selectedLegId, setSelectedStop, setSelectedLeg } = useSelection();
+  if (!selectedStopId && !selectedLegId) return null;
+  const close = () => {
+    setSelectedStop(null);
+    setSelectedLeg(null);
+  };
+  return (
+    <div className="fixed inset-0 z-40 hidden max-md:block">
+      <div className="absolute inset-0 bg-ink/25 backdrop-blur-[1px]" onMouseDown={close} />
+      <div className="absolute inset-x-2 bottom-[calc(3.8rem+env(safe-area-inset-bottom))]">
+        <DetailHost onShowMap={onShowMap} />
+      </div>
+    </div>
+  );
 }
 
 export function TripWorkspace() {
@@ -100,6 +118,10 @@ export function TripWorkspace() {
   const [versionsOpen, setVersionsOpen] = useState(false);
   const [bookingOpen, setBookingOpen] = useState(false);
   const [mobileTab, setMobileTab] = useState<"timeline" | "map" | "chat">("timeline");
+  // 手機切到地圖頁:地圖隱藏期間 pan/fit 無效,顯示後要求重新定位到目前選取
+  useEffect(() => {
+    if (mobileTab === "map") window.dispatchEvent(new Event("tm-locate"));
+  }, [mobileTab]);
   const [dayDrawerOpen, setDayDrawerOpen] = useState(false);
   const { activeDayId } = useSelection();
   const agentCtx = useChat();
@@ -318,10 +340,8 @@ export function TripWorkspace() {
         </aside>
       </div>
 
-      {/* 手機:地點/交通詳細統一為底部抽屜(不蓋導航,跨分頁顯示) */}
-      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(3.8rem+env(safe-area-inset-bottom))] z-30 hidden px-2 max-md:block [&>section]:pointer-events-auto">
-        <DetailHost />
-      </div>
+      {/* 手機:地點/交通詳細=行程頁底部抽屜(黑幕點旁關閉;地圖/塔比頁不出現) */}
+      {mobileTab === "timeline" && <MobileDetailDrawer onShowMap={() => setMobileTab("map")} />}
 
       {/* lg 以下:聊天抽屜浮動開關(帶 agent 活動脈動) */}
       <ChatFab

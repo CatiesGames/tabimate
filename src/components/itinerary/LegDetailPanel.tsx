@@ -3,7 +3,7 @@
 // 交通詳細卡:與地點詳細卡同一種呈現(桌面在地圖下方、手機在底部抽屜)。
 // 點時間軸交通卡 / 聊天 @ 提及的交通就開這張;編輯入口在卡內(LegEditor)。
 import { useState } from "react";
-import { ArrowSquareOut, PencilSimple, Trash, Warning, X } from "@phosphor-icons/react";
+import { ArrowSquareOut, MapTrifold, PencilSimple, Trash, Warning, X } from "@phosphor-icons/react";
 
 import { LEG_MODE_ICON, LEG_MODE_LABEL } from "@/lib/categories";
 import { cn } from "@/lib/cn";
@@ -14,7 +14,7 @@ import { ConfirmDialog, SegmentedChips, Tag } from "@/components/ui";
 import { BookingBadge, bookingWords } from "./badges";
 import { LegEditor } from "./LegEditor";
 
-export function LegDetailPanel() {
+export function LegDetailPanel({ onShowMap }: { onShowMap?: () => void }) {
   const { doc, editOps } = useTrip();
   const { selectedLegId, setSelectedLeg } = useSelection();
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -64,13 +64,25 @@ export function LegDetailPanel() {
               )}
             </div>
           </div>
-          <button
-            aria-label="關閉"
-            onClick={() => setSelectedLeg(null)}
-            className="tm-focus shrink-0 rounded-sm p-1 text-ink-faint transition-colors hover:bg-sunken hover:text-ink"
-          >
-            <X className="size-4" />
-          </button>
+          <span className="flex shrink-0 items-center gap-1">
+            {/* 手機抽屜:跳到地圖頁,涵蓋這段交通的起訖兩點(header 常駐,免捲動) */}
+            {onShowMap && (from.lat != null || to.lat != null) && (
+              <button
+                onClick={onShowMap}
+                className="tm-focus flex items-center gap-1 rounded-full bg-ocean-wash px-2.5 py-1 text-xs font-medium text-ocean-deep active:scale-[0.97]"
+              >
+                <MapTrifold weight="fill" className="size-3.5" />
+                地圖
+              </button>
+            )}
+            <button
+              aria-label="關閉"
+              onClick={() => setSelectedLeg(null)}
+              className="tm-focus shrink-0 rounded-sm p-1 text-ink-faint transition-colors hover:bg-sunken hover:text-ink"
+            >
+              <X className="size-4" />
+            </button>
+          </span>
         </header>
 
         {/* 時間與費用 */}

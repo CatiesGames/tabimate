@@ -161,11 +161,18 @@ function FitBounds({ stops, dayId }: { stops: Stop[]; dayId: string | null }) {
   // 選點 → 平移過去;選交通 → 涵蓋前後兩個地點
   const { selectedStopId, selectedLegId } = useSelection();
   const { doc } = useTrip();
+  // 手機:地圖分頁從隱藏變可見時(tm-locate),對目前選取重新定位(隱藏時 pan/fit 無效)
+  const [locateTick, setLocateTick] = useState(0);
+  useEffect(() => {
+    const fn = () => setTimeout(() => setLocateTick((t) => t + 1), 150);
+    window.addEventListener("tm-locate", fn);
+    return () => window.removeEventListener("tm-locate", fn);
+  }, []);
   useEffect(() => {
     if (!map || !selectedStopId) return;
     const s = stops.find((x) => x.id === selectedStopId);
     if (s) map.panTo({ lat: s.lat!, lng: s.lng! });
-  }, [map, selectedStopId, stops]);
+  }, [map, selectedStopId, stops, locateTick]);
   useEffect(() => {
     if (!map || !selectedLegId || !doc) return;
     // 住宿頭尾交通:涵蓋住宿與相鄰行程;一般交通:涵蓋前後兩個地點
@@ -189,7 +196,7 @@ function FitBounds({ stops, dayId }: { stops: Stop[]; dayId: string | null }) {
     const bounds = new google.maps.LatLngBounds();
     for (const e of ends) bounds.extend({ lat: e.lat!, lng: e.lng! });
     map.fitBounds(bounds, 90);
-  }, [map, selectedLegId, doc]);
+  }, [map, selectedLegId, doc, locateTick]);
   return null;
 }
 

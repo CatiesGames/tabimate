@@ -7,6 +7,7 @@ import {
   Clock,
   Link as LinkIcon,
   MapPin,
+  MapTrifold,
   Phone,
   Star,
   Trash,
@@ -27,7 +28,7 @@ import { ConfirmDialog, Hint, ImageLightbox, SegmentedChips, Switch, Tag } from 
 import { BookingBadge, bookingWords, VerifyBadge } from "./badges";
 import { TimeField } from "./TimeField";
 
-export function StopDetailPanel() {
+export function StopDetailPanel({ onShowMap }: { onShowMap?: () => void }) {
   const { doc, editOps } = useTrip();
   const { selectedStopId, setSelectedStop } = useSelection();
   const { googleReady } = useSession();
@@ -134,13 +135,25 @@ export function StopDetailPanel() {
               )}
             </div>
           </div>
-          <button
-            aria-label="關閉"
-            onClick={() => setSelectedStop(null)}
-            className="tm-focus shrink-0 rounded-sm p-1 text-ink-faint transition-colors hover:bg-sunken hover:text-ink"
-          >
-            <X className="size-4" />
-          </button>
+          <span className="flex shrink-0 items-center gap-1">
+            {/* 手機抽屜:跳到地圖頁定位這個地點(header 常駐,免捲動) */}
+            {onShowMap && stop.lat != null && stop.lng != null && (
+              <button
+                onClick={onShowMap}
+                className="tm-focus flex items-center gap-1 rounded-full bg-ocean-wash px-2.5 py-1 text-xs font-medium text-ocean-deep active:scale-[0.97]"
+              >
+                <MapTrifold weight="fill" className="size-3.5" />
+                地圖
+              </button>
+            )}
+            <button
+              aria-label="關閉"
+              onClick={() => setSelectedStop(null)}
+              className="tm-focus shrink-0 rounded-sm p-1 text-ink-faint transition-colors hover:bg-sunken hover:text-ink"
+            >
+              <X className="size-4" />
+            </button>
+          </span>
         </header>
 
         {/* 時間 + 天 */}

@@ -27,6 +27,9 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  // 手機聚焦輸入框(塔比對話等)時瀏覽器會自動放大頁面,鎖定縮放避免版面被撐走
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
 };
 
