@@ -266,7 +266,7 @@ function EmptyChat() {
 }
 
 const MessageRow = function MessageRow({ message }: { message: ChatMessage }) {
-  const { memberOf } = useSession();
+  const { me, memberOf } = useSession();
 
   if (message.role === "system") {
     return (
@@ -278,17 +278,28 @@ const MessageRow = function MessageRow({ message }: { message: ChatMessage }) {
 
   if (message.role === "user") {
     const author = memberOf(message.userId);
+    const mine = message.userId === me?.id;
     return (
-      <div className="flex gap-2">
+      <div className={cn("flex gap-2", mine && "flex-row-reverse")}>
         <Avatar user={author} size="sm" className="mt-0.5" />
         <div className="min-w-0 flex-1">
-          <p className="flex items-baseline gap-2 text-[11px] text-ink-faint">
+          <p
+            className={cn(
+              "flex items-baseline gap-2 text-[11px] text-ink-faint",
+              mine && "flex-row-reverse",
+            )}
+          >
             <span className="font-medium text-ink-soft">{author.name}</span>
             <span className="tm-num">{clockLabel(message.createdAt)}</span>
             {message.status === "queued" && <Tag tone="neutral">排隊中</Tag>}
             {message.status === "stopped" && <Tag tone="neutral">已取消</Tag>}
           </p>
-          <div className="mt-0.5 rounded-lg rounded-tl-sm bg-sunken px-3 py-2 text-[13px] break-words [overflow-wrap:anywhere] text-ink">
+          <div
+            className={cn(
+              "mt-0.5 rounded-lg bg-sunken px-3 py-2 text-[13px] break-words [overflow-wrap:anywhere] text-ink",
+              mine ? "rounded-tr-sm" : "rounded-tl-sm",
+            )}
+          >
             <MentionText content={message.content} mentions={message.mentions} />
             {message.attachmentIds.length > 0 && (
               <span className="mt-1.5 flex flex-wrap gap-1.5">
@@ -333,7 +344,7 @@ function UserMessageActions({ message }: { message: ChatMessage }) {
   };
 
   return (
-    <p className="mt-1 flex gap-3">
+    <p className="mt-1 flex justify-end gap-3">
       {message.status === "queued" && (
         <button
           onClick={cancel}
