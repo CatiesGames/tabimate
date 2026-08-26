@@ -36,7 +36,7 @@ function lruSet(q: string, v: AcResult[]) {
 
 type Mode = "idle" | "search" | "manual";
 
-export function AddStop({ dayId }: { dayId: string }) {
+export function AddStop({ dayId, position }: { dayId: string; position?: number }) {
   const { googleReady } = useSession();
   const { doc, editOps } = useTrip();
   const [mode, setMode] = useState<Mode>("idle");
@@ -138,6 +138,7 @@ export function AddStop({ dayId }: { dayId: string }) {
             op: "add_stop",
             tempId: "new",
             dayId,
+            position,
             name: r.mainText,
             category,
             placeId: r.placeId,
@@ -151,7 +152,7 @@ export function AddStop({ dayId }: { dayId: string }) {
     } catch {
       // 詳情抓不到就純名稱加入
       await editOps(
-        [{ op: "add_stop", dayId, name: r.mainText, category, placeId: r.placeId }],
+        [{ op: "add_stop", dayId, position, name: r.mainText, category, placeId: r.placeId }],
         `新增 ${r.mainText}`,
       );
     }
@@ -181,6 +182,7 @@ export function AddStop({ dayId }: { dayId: string }) {
       <div ref={boxRef}>
         <ManualForm
           dayId={dayId}
+          position={position}
           initialName={query}
           onDone={() => {
             setMode("idle");
@@ -271,18 +273,21 @@ export function AddStop({ dayId }: { dayId: string }) {
 
 function ManualForm({
   dayId,
+  position,
   initialName,
   onDone,
 }: {
   dayId: string;
+  position?: number;
   initialName: string;
   onDone: () => void;
 }) {
   const { doc, editOps } = useTrip();
-  const lastStop = (doc?.stops ?? [])
+  const ordered = (doc?.stops ?? [])
     .filter((s) => s.dayId === dayId)
-    .sort((a, b) => a.position - b.position)
-    .at(-1);
+    .sort((a, b) => a.position - b.position);
+  // 指定插入位置時,「前一項」是插入點的前一個(否則是當天最後一個)
+  const lastStop = position != null ? ordered[position - 1] : ordered.at(-1);
   const [name, setName] = useState(initialName.trim());
   const [category, setCategory] = useState<StopCategory>("sight");
   const [time, setTime] = useState<string | null>(null);
@@ -292,7 +297,7 @@ function ManualForm({
   const submit = async () => {
     if (!name.trim()) return;
     await editOps(
-      [{ op: "add_stop", dayId, name: name.trim(), category, startTime: time }],
+      [{ op: "add_stop", dayId, position, name: name.trim(), category, startTime: time }],
       `新增 ${name.trim()}`,
     );
     onDone();

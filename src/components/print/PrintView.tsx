@@ -4,16 +4,7 @@
 // 開啟後預覽內容,按右上「列印 / 存 PDF」再印(不自動彈列印對話框)。
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  AirplaneTilt,
-  ArrowLeft,
-  CalendarCheck,
-  MoonStars,
-  Printer,
-  SealCheck,
-  Ticket,
-  Warning,
-} from "@phosphor-icons/react";
+import { AirplaneTilt, ArrowLeft, Bed, CalendarCheck, Printer, SealCheck, Ticket, Warning } from "@phosphor-icons/react";
 
 import { apiFetch, ApiError } from "@/lib/api";
 import { CATEGORY_META, LEG_MODE_ICON, LEG_MODE_LABEL } from "@/lib/categories";
@@ -354,7 +345,7 @@ function CarryRowPrint({
         className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-white"
         style={{ backgroundColor: "var(--tm-cat-lodging)", printColorAdjust: "exact" }}
       >
-        <MoonStars weight="fill" className="size-3.5" />
+        <Bed weight="fill" className="size-3.5" />
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-[13px] leading-tight font-semibold">{carry.stop.name}</p>

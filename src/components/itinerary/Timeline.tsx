@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Bed, CaretRight, DotsSixVertical, MoonStars, Plus, Warning } from "@phosphor-icons/react";
+import { Bed, CaretRight, DotsSixVertical, Plus, Warning } from "@phosphor-icons/react";
 
 import { CATEGORY_META, LEG_MODE_ICON } from "@/lib/categories";
 import { cn } from "@/lib/cn";
@@ -89,6 +89,10 @@ export function Timeline() {
       for (let i = 0; i < mids.length; i++) {
         if (ev.clientY > mids[i]) over = i;
       }
+      // 末位住宿固定收尾:其他卡片不能拖到它後面
+      if (endsWithLodging && stop.category !== "lodging") {
+        over = Math.min(over, mids.length - 2);
+      }
       setDragging((d) => (d ? { ...d, y: dy, overIndex: over } : d));
     };
     const onUp = () => {
@@ -115,6 +119,9 @@ export function Timeline() {
 
   const carryLodging = carryOverLodging(doc.days, doc.stops, activeDayId);
   const activeDay = doc.days.find((d) => d.id === activeDayId) ?? null;
+  // 入住日:住宿在當天末位時固定收尾,「新增地點」移到它上面(新地點插在住宿之前)
+  const lastStop = stops[stops.length - 1] ?? null;
+  const endsWithLodging = lastStop?.category === "lodging";
 
   return (
     <div ref={listRef} className="flex flex-col">
@@ -151,9 +158,15 @@ export function Timeline() {
         const leg = legOf(stop.id);
         const nextStop = stops[i + 1];
 
+        const addBeforeLodging = endsWithLodging && i === stops.length - 1;
         return (
+          <div key={stop.id}>
+            {addBeforeLodging && (
+              <div className="mt-2 mb-2">
+                <AddStop dayId={activeDayId} position={i} />
+              </div>
+            )}
           <div
-            key={stop.id}
             data-stop-wrap
             style={
               dragging
@@ -306,12 +319,15 @@ export function Timeline() {
               </div>
             )}
           </div>
+          </div>
         );
       })}
 
-      <div className="mt-2">
-        <AddStop dayId={activeDayId} />
-      </div>
+      {!endsWithLodging && (
+        <div className="mt-2">
+          <AddStop dayId={activeDayId} />
+        </div>
+      )}
 
       {/* 一天的結尾是回住宿:回住宿列固定在最下面(新增地點之後) */}
       {carryLodging && !carryLodging.isCheckoutDay && activeDay && (
@@ -418,7 +434,7 @@ function CarryLodgingRow({
           className="flex size-7 shrink-0 items-center justify-center rounded-full text-white"
           style={{ backgroundColor: "var(--tm-cat-lodging)" }}
         >
-          <MoonStars weight="fill" className="size-3.5" />
+          <Bed weight="fill" className="size-3.5" />
         </span>
         <button
           onClick={() => setSelectedStop(carry.stop.id)}

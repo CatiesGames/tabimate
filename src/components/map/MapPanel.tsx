@@ -7,7 +7,7 @@ import {
   Map as GMap,
   useMap,
 } from "@vis.gl/react-google-maps";
-import { MapTrifold, Plus, X, MoonStars } from "@phosphor-icons/react";
+import { Bed, MapTrifold, Plus, X } from "@phosphor-icons/react";
 
 import { apiFetch } from "@/lib/api";
 import { CATEGORY_META, guessCategory } from "@/lib/categories";
@@ -102,7 +102,7 @@ function MapCanvas() {
               style={{ backgroundColor: "var(--tm-cat-lodging)" }}
               title={`${carryStop.name}(住宿)`}
             >
-              <MoonStars weight="fill" className="size-3.5" />
+              <Bed weight="fill" className="size-3.5" />
             </div>
           </AdvancedMarker>
         )}
