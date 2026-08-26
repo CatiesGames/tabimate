@@ -304,7 +304,7 @@ function StopRow({
         <img
           src={`/api/google/photo?ref=${encodeURIComponent(photo)}&w=400`}
           alt={stop.name}
-          className="h-16 w-24 shrink-0 rounded-md object-cover"
+          className="h-24 w-36 shrink-0 rounded-lg object-cover"
           style={{ printColorAdjust: "exact" }}
         />
       )}
