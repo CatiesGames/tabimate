@@ -313,15 +313,15 @@ export async function placePhoto(
 // ---- Static Maps(PDF 每日地圖:編號 marker + 依序連線;磁碟快取)----
 
 export async function staticMap(
-  points: Array<{ lat: number; lng: number }>,
+  points: Array<{ lat: number; lng: number; n?: number }>,
   /** 續住日的住宿(當天起點;returnAtNight=晚上也回這裡住 → 路徑閉環)。 */
-  lodging?: { lat: number; lng: number; returnAtNight: boolean },
+  lodging?: { lat: number; lng: number; returnAtNight: boolean; skipMarker?: boolean },
 ): Promise<{ path: string; cache: "HIT" | "MISS" }> {
   const pts = points.slice(0, 40);
   const lodgePart = lodging
-    ? `|L${lodging.lat.toFixed(5)},${lodging.lng.toFixed(5)},${lodging.returnAtNight ? 1 : 0}`
+    ? `|L${lodging.lat.toFixed(5)},${lodging.lng.toFixed(5)},${lodging.returnAtNight ? 1 : 0},${lodging.skipMarker ? 1 : 0}`
     : "";
-  const k = hash(`staticmap|v2|${pts.map((p) => `${p.lat.toFixed(5)},${p.lng.toFixed(5)}`).join(";")}${lodgePart}`);
+  const k = hash(`staticmap|v3|${pts.map((p) => `${p.lat.toFixed(5)},${p.lng.toFixed(5)},${p.n ?? 0}`).join(";")}${lodgePart}`);
   const row = db
     .query("SELECT path, expires_at FROM g_photo_cache WHERE key = ?")
     .get(k) as { path: string; expires_at: number } | null;
@@ -338,15 +338,19 @@ export async function staticMap(
   });
   // 依行程順序連線(看得出當天移動方向);編號 marker(Static Maps label 只吃單一字元,>9 不標號)
   pts.forEach((pt, i) => {
-    const label = i < 9 ? `|label:${i + 1}` : "";
+    const n = pt.n ?? i + 1;
+    const label = n <= 9 ? `|label:${n}` : "";
     params.append("markers", `size:mid|color:0xFF5D47${label}|${pt.lat},${pt.lng}`);
   });
-  if (lodging) {
+  if (lodging && !lodging.skipMarker) {
     params.append("markers", `size:mid|color:0x6E6BF0|${lodging.lat},${lodging.lng}`);
   }
   // 路徑含住宿頭尾:早上從住宿出發,中間天晚上回住宿(閉環),看得出當天動線
+  // skipMarker=入住日中段住宿:飯店已在編號序列中,路徑只需在結尾閉環回去
   const pathPts = lodging
-    ? [lodging, ...pts, ...(lodging.returnAtNight ? [lodging] : [])]
+    ? lodging.skipMarker
+      ? [...pts, ...(lodging.returnAtNight ? [{ lat: lodging.lat, lng: lodging.lng }] : [])]
+      : [lodging, ...pts, ...(lodging.returnAtNight ? [lodging] : [])]
     : pts;
   if (pathPts.length > 1) {
     params.append(

@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { MagnifyingGlass, MapPin, Plus } from "@phosphor-icons/react";
+import { Bed, MagnifyingGlass, MapPin, Plus } from "@phosphor-icons/react";
 
 import { apiFetch } from "@/lib/api";
 import { CATEGORY_META, guessCategory } from "@/lib/categories";
 import { cn } from "@/lib/cn";
+import { carryOverLodging, isDayVisitLodging } from "@/shared/conflicts";
 import { STOP_CATEGORIES, type StopCategory } from "@/shared/config";
 import type { PlaceInfo } from "@/shared/types";
 import { useSession, useTrip } from "@/lib/workspace/WorkspaceProvider";
@@ -50,6 +51,63 @@ export function AddStop({ dayId, position }: { dayId: string; position?: number 
 
   // 以行程中已有座標的點做搜尋偏好中心
   const near = doc?.stops.find((s) => s.lat != null && s.lng != null);
+
+  // 「回飯店休息」快捷:當天有可回的過夜住宿(續住或當天入住)就一鍵加卡,不用搜尋
+  const restHotel = (() => {
+    if (!doc) return null;
+    const carry = carryOverLodging(doc.days, doc.stops, dayId);
+    if (carry) return carry.stop;
+    const dayStops = doc.stops
+      .filter((s) => s.dayId === dayId)
+      .sort((a, b) => a.position - b.position);
+    return (
+      [...dayStops].reverse().find((s) => s.category === "lodging" && !isDayVisitLodging(s)) ??
+      null
+    );
+  })();
+
+  const addRest = async () => {
+    if (!restHotel) return;
+    const dayStops = (doc?.stops ?? [])
+      .filter((s) => s.dayId === dayId)
+      .sort((a, b) => a.position - b.position);
+    const prev = position != null ? dayStops[position - 1] : dayStops.at(-1);
+    // 預設接續前一項,休息 2 小時(起訖同日才會被視為休息而非過夜)
+    const start = prev?.endTime ?? prev?.startTime ?? "14:00";
+    const h = Number(start.slice(0, 2));
+    const end = `${String(Math.min(h + 2, 23)).padStart(2, "0")}${start.slice(2)}`;
+    await editOps(
+      [
+        {
+          op: "add_stop",
+          tempId: "rest",
+          dayId,
+          position,
+          name: restHotel.name,
+          category: "lodging",
+          placeId: restHotel.placeId,
+          lat: restHotel.lat,
+          lng: restHotel.lng,
+          address: restHotel.address,
+          startTime: start,
+          endTime: end,
+          notes: "回飯店休息",
+        },
+        ...(restHotel.place
+          ? [
+              {
+                op: "update_stop" as const,
+                stopId: "$rest",
+                patch: { place: restHotel.place },
+              },
+            ]
+          : []),
+      ],
+      `回 ${restHotel.name} 休息`,
+    );
+    setMode("idle");
+    setQuery("");
+  };
 
   const search = useCallback(
     (q: string) => {
@@ -223,6 +281,24 @@ export function AddStop({ dayId, position }: { dayId: string; position?: number 
         />
         {loading && <Spinner className="absolute top-1/2 right-2 size-4 -translate-y-1/2" />}
       </div>
+
+      {restHotel && !query.trim() && (
+        <button
+          onClick={addRest}
+          className="tm-focus mt-1.5 flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-[13px] text-ink transition-colors hover:bg-cat-lodging/10"
+        >
+          <span
+            className="flex size-6 shrink-0 items-center justify-center rounded-full text-white"
+            style={{ backgroundColor: "var(--tm-cat-lodging)" }}
+          >
+            <Bed weight="fill" className="size-3.5" />
+          </span>
+          <span className="min-w-0 flex-1 truncate">
+            回 <span className="font-medium">{restHotel.name}</span> 休息
+          </span>
+          <span className="shrink-0 text-[11px] text-ink-faint">帶入預設時段,可再調</span>
+        </button>
+      )}
 
       {googleReady && results.length > 0 && (
         <ul className="mt-1.5 flex flex-col">

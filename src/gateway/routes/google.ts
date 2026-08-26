@@ -11,7 +11,7 @@ import {
   staticMap,
   type Waypoint,
 } from "../google";
-import { carryOverLodging } from "../../shared/conflicts";
+import { carryOverLodging, isDayVisitLodging } from "../../shared/conflicts";
 import { db } from "../db";
 import { loadDoc } from "../itinerary";
 import { HttpError, json, route } from "../http";
@@ -95,19 +95,34 @@ export function registerGoogleRoutes() {
       trip_id: string;
     } | null;
     if (!day || day.trip_id !== user.trip_id) throw new HttpError(404, "day_not_found");
-    const pts = db
-      .query(
-        "SELECT lat, lng FROM stops WHERE day_id = ? AND lat IS NOT NULL AND lng IS NOT NULL ORDER BY position",
-      )
-      .all(dayId) as Array<{ lat: number; lng: number }>;
+    const allRows = db
+      .query("SELECT lat, lng FROM stops WHERE day_id = ? ORDER BY position")
+      .all(dayId) as Array<{ lat: number | null; lng: number | null }>;
+    // 編號 = 時間軸全列表序號(無座標的卡佔號但不畫),兩邊對得上
+    const pts = allRows
+      .map((r, i) => ({ lat: r.lat, lng: r.lng, n: i + 1 }))
+      .filter((r): r is { lat: number; lng: number; n: number } => r.lat != null && r.lng != null);
     if (pts.length === 0) throw new HttpError(404, "no_located_stops");
     // 續住日把住宿也畫進地圖(起點/終點)
     const { doc } = loadDoc(day.trip_id);
     const carry = carryOverLodging(doc.days, doc.stops, dayId);
+    // 入住日先放行李(過夜住宿不在末位):路徑結尾閉環回飯店(飯店已是編號 marker)
+    const dayStops = doc.stops
+      .filter((s2) => s2.dayId === dayId)
+      .sort((a, b) => a.position - b.position);
+    const ownLodging = [...dayStops]
+      .reverse()
+      .find((s2) => s2.category === "lodging" && !isDayVisitLodging(s2));
+    const midday =
+      !carry && ownLodging && dayStops.indexOf(ownLodging) < dayStops.length - 1
+        ? ownLodging
+        : null;
     const lodging =
       carry && carry.stop.lat != null && carry.stop.lng != null
         ? { lat: carry.stop.lat, lng: carry.stop.lng, returnAtNight: !carry.isCheckoutDay }
-        : undefined;
+        : midday && midday.lat != null && midday.lng != null
+          ? { lat: midday.lat, lng: midday.lng, returnAtNight: true, skipMarker: true }
+          : undefined;
     const { path, cache } = await guard(() => staticMap(pts, lodging));
     return new Response(Bun.file(path), {
       headers: {
