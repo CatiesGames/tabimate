@@ -13,8 +13,15 @@ import { useTrip } from "@/lib/workspace/WorkspaceProvider";
 import { Button, Hint, Input, SegmentedChips } from "@/components/ui";
 import { TimeField } from "./TimeField";
 
-type Seg = { mode: LegMode; label: string; dep: string | null; arr: string | null };
-
+type TransitStep = NonNullable<TransitDetail["steps"]>[number];
+type Seg = {
+  mode: LegMode;
+  label: string;
+  dep: string | null;
+  arr: string | null;
+  /** 塔比寫入的原始 step:儲存時 merge 回去,headsign/起訖站/站數不因人工編輯而遺失。 */
+  orig?: TransitStep;
+};
 
 const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
 
@@ -74,24 +81,41 @@ export function LegEditor({
       setBkStatus(leg?.bookingStatus ?? "not_booked");
       setBkUrl(leg?.booking?.url ?? "");
       setSegs(
-        (leg?.transit?.steps ?? []).map((s) => ({
-          mode: (LEG_MODES as readonly string[]).includes(s.mode as string)
-            ? (s.mode as LegMode)
-            : "transit",
-          label: s.line ?? "",
-          dep: s.departureTime ?? null,
-          arr: s.arrivalTime ?? null,
-        })),
+        (leg?.transit?.steps ?? [])
+          // 只有 mode、沒有任何可呈現內容的 step(塔比偶爾會寫出)不進編輯列表
+          .filter(
+            (s) =>
+              s.line ||
+              s.headsign ||
+              s.departureStop ||
+              s.arrivalStop ||
+              s.departureTime ||
+              s.arrivalTime,
+          )
+          .map((s) => ({
+            mode: (LEG_MODES as readonly string[]).includes(s.mode as string)
+              ? (s.mode as LegMode)
+              : "transit",
+            label:
+              s.line ||
+              [s.departureStop, s.arrivalStop].filter(Boolean).join("→") ||
+              s.headsign ||
+              "",
+            dep: s.departureTime ?? null,
+            arr: s.arrivalTime ?? null,
+            orig: s,
+          })),
       );
     }
   };
 
-  // 分段模式:整段時間完全由分段推導(第一段出發 → 最後一段抵達),不再手填以免對不上
+  // 分段模式:整段時間由分段推導(第一段出發 → 最後一段抵達);
+  // 分段沒填時間時退回整段原有時間,不會因為分段存在就顯示/存成空
   const hasSegs = segs.length > 0;
   const segDep = segs.find((s) => s.dep)?.dep ?? null;
   const segArr = [...segs].reverse().find((s) => s.arr)?.arr ?? null;
-  const effDep = hasSegs ? segDep : dep;
-  const effArr = hasSegs ? segArr : arr;
+  const effDep = hasSegs ? (segDep ?? dep) : dep;
+  const effArr = hasSegs ? (segArr ?? arr) : arr;
   const autoDuration = (() => {
     if (!effDep || !effArr) return null;
     let diff = toMin(effArr) - toMin(effDep);
@@ -108,7 +132,9 @@ export function LegEditor({
         summary:
           summaryText.trim() ||
           validSegs.map((s) => s.label.trim() || LEG_MODE_LABEL[s.mode]).join(" → "),
+        // merge 回原始 step:塔比寫的 headsign/起訖站/站數保留,人工欄位覆蓋上去
         steps: validSegs.map((s) => ({
+          ...s.orig,
           mode: s.mode,
           line: s.label.trim() || undefined,
           departureTime: s.dep ?? undefined,
@@ -291,7 +317,7 @@ export function LegEditor({
             <span className="text-xs text-ink-faint">整段</span>
             {hasSegs ? (
               <span className="tm-num rounded-md bg-sunken px-2.5 py-1.5 text-sm text-ink">
-                {segDep ?? "--:--"} <span className="text-ink-faint">→</span> {segArr ?? "--:--"}
+                {effDep ?? "--:--"} <span className="text-ink-faint">→</span> {effArr ?? "--:--"}
               </span>
             ) : (
               <>

@@ -13,6 +13,12 @@ import {
 } from "@/shared/conflicts";
 import type { CarryLeg, Day, Leg, Stop } from "@/shared/types";
 import {
+  type CarryEdge,
+  carryLegSaveOp,
+  carryLegSelectionId,
+  resolveCarryLeg,
+} from "@/lib/carryLeg";
+import {
   usePresence,
   useSelection,
   useSession,
@@ -138,54 +144,25 @@ export function Timeline() {
     </LegEditor>
   );
 
-  // 住宿頭尾交通(存在 day 上)也走統一間隙模式:pills → 交通卡 → pills
-  const carryLegZone = (
-    edge: "top" | "bottom",
-    carry: NonNullable<ReturnType<typeof carryOverLodging>>,
-    day: Day,
-    adjacentStop2: Stop | null,
-  ) => {
+  // 住宿頭尾交通(存在 day 上)也走統一間隙模式:pills → 交通卡 → pills。
+  // 卡片點了與一般交通一致 → 開底部詳細卡;pill(尚未安排/快速調整)維持就地 popover。
+  const carryLegZone = (edge: "top" | "bottom", day: Day) => {
+    const carryEdge: CarryEdge = edge === "top" ? "morning" : "evening";
     const isTop = edge === "top";
-    const carryLeg = isTop ? day.lodgingMorningLeg : day.lodgingEveningLeg;
-    const legField = isTop ? "lodgingMorningLeg" : "lodgingEveningLeg";
     const keyBase = isTop ? "head" : "tail";
     const insertPos = isTop ? 0 : undefined;
-    const departValue = carry.isCheckoutDay
-      ? isOvernightLodging(carry.stop)
-        ? carry.stop.endTime
-        : null
-      : day.lodgingDepartTime;
-    const fakeLeg: Leg | null = carryLeg
-      ? {
-          id: `carry-${day.id}-${edge}`,
-          tripId: day.tripId,
-          fromStopId: "",
-          toStopId: "",
-          distanceM: null,
-          needsReview: false,
-          bookingType: "none" as const,
-          bookingStatus: "not_booked" as const,
-          booking: null,
-          updatedAt: 0,
-          ...carryLeg,
-        }
-      : null;
-    const saveLeg = (p: CarryLeg | null) =>
-      editOps(
-        [{ op: "update_day", dayId: day.id, patch: { [legField]: p } }],
-        p
-          ? isTop
-            ? `調整 ${carry.stop.name} → ${adjacentStop2?.name ?? "首個行程"} 交通`
-            : `調整 ${adjacentStop2?.name ?? "最後行程"} → ${carry.stop.name} 交通`
-          : "清除住宿交通",
-      );
-    const hotelAsFrom: Stop = { ...carry.stop, startTime: null, endTime: departValue };
-    const hotelAsTo: Stop = { ...carry.stop, startTime: day.lodgingReturnTime, endTime: null };
-    const pill = adjacentStop2 ? (
+    const ctx = resolveCarryLeg(doc, day.id, carryEdge);
+    if (!ctx) return renderGap(keyBase, insertPos, null);
+    const selId = carryLegSelectionId(day.id, carryEdge);
+    const saveLeg = (p: CarryLeg | null) => {
+      const { ops, label } = carryLegSaveOp(ctx, carryEdge, p);
+      editOps(ops, label);
+    };
+    const pill = (
       <LegEditor
-        stop={isTop ? hotelAsFrom : adjacentStop2}
-        nextStop={isTop ? adjacentStop2 : hotelAsTo}
-        leg={fakeLeg}
+        stop={ctx.from}
+        nextStop={ctx.to}
+        leg={ctx.fakeLeg}
         saveOverride={saveLeg}
         removeOverride={() => saveLeg(null)}
       >
@@ -194,24 +171,22 @@ export function Timeline() {
           安排交通
         </button>
       </LegEditor>
-    ) : null;
-    if (!fakeLeg || !adjacentStop2) return renderGap(keyBase, insertPos, pill);
+    );
+    if (!ctx.fakeLeg) return renderGap(keyBase, insertPos, pill);
     return (
       <>
         {renderGap(`${keyBase}-a`, insertPos, pill)}
         <div className="flex pl-[1.35rem]">
           <div className="flex min-w-0 flex-1 items-center border-l-2 border-dotted border-line-strong py-0.5 pl-4">
-            <LegEditor
-              stop={isTop ? hotelAsFrom : adjacentStop2}
-              nextStop={isTop ? adjacentStop2 : hotelAsTo}
-              leg={fakeLeg}
-              saveOverride={saveLeg}
-              removeOverride={() => saveLeg(null)}
+            <button
+              onClick={() => setSelectedLeg(selectedLegId === selId ? null : selId)}
+              className={cn(
+                "tm-focus flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border bg-surface px-3 py-2 text-left text-xs text-ink-soft shadow-card transition-[border-color,box-shadow] hover:border-ocean/40 hover:shadow-lift",
+                selectedLegId === selId ? "border-ocean/60 shadow-lift" : "border-line",
+              )}
             >
-              <button className="tm-focus flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-line bg-surface px-3 py-2 text-left text-xs text-ink-soft shadow-card transition-[border-color,box-shadow] hover:border-ocean/40 hover:shadow-lift">
-                <LegSummary leg={fakeLeg} />
-              </button>
-            </LegEditor>
+              <LegSummary leg={ctx.fakeLeg} />
+            </button>
           </div>
         </div>
         {renderGap(`${keyBase}-b`, insertPos, pill)}
@@ -230,7 +205,7 @@ export function Timeline() {
       {carryLodging && activeDay && (
         <>
           <CarryLodgingRow carry={carryLodging} edge="top" day={activeDay} />
-          {carryLegZone("top", carryLodging, activeDay, stops[0] ?? null)}
+          {carryLegZone("top", activeDay)}
         </>
       )}
       {stops.length === 0 && (
@@ -430,7 +405,7 @@ export function Timeline() {
         if (!activeDay || !bottomCarry) return renderGap("end", undefined, null);
         return (
           <>
-            {carryLegZone("bottom", bottomCarry, activeDay, stops[stops.length - 1] ?? null)}
+            {carryLegZone("bottom", activeDay)}
             <CarryLodgingRow carry={bottomCarry} edge="bottom" day={activeDay} />
           </>
         );

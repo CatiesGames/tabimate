@@ -10,6 +10,7 @@ import {
 import { Bed, MapTrifold, Plus, X } from "@phosphor-icons/react";
 
 import { apiFetch } from "@/lib/api";
+import { parseCarryLegSelection, resolveCarryLeg } from "@/lib/carryLeg";
 import { CATEGORY_META, guessCategory } from "@/lib/categories";
 import { cn } from "@/lib/cn";
 import { carryOverLodging } from "@/shared/conflicts";
@@ -167,10 +168,23 @@ function FitBounds({ stops, dayId }: { stops: Stop[]; dayId: string | null }) {
   }, [map, selectedStopId, stops]);
   useEffect(() => {
     if (!map || !selectedLegId || !doc) return;
-    const leg = doc.legs.find((l) => l.fromStopId === selectedLegId);
-    if (!leg) return;
-    const ends = [doc.stops.find((x) => x.id === leg.fromStopId), doc.stops.find((x) => x.id === leg.toStopId)]
-      .filter((x): x is NonNullable<typeof x> => !!x && x.lat != null && x.lng != null);
+    // 住宿頭尾交通:涵蓋住宿與相鄰行程;一般交通:涵蓋前後兩個地點
+    const carrySel = parseCarryLegSelection(selectedLegId);
+    let rawEnds: Array<{ lat: number | null; lng: number | null } | undefined>;
+    if (carrySel) {
+      const ctx = resolveCarryLeg(doc, carrySel.dayId, carrySel.edge);
+      rawEnds = ctx ? [ctx.from, ctx.to] : [];
+    } else {
+      const leg = doc.legs.find((l) => l.fromStopId === selectedLegId);
+      if (!leg) return;
+      rawEnds = [
+        doc.stops.find((x) => x.id === leg.fromStopId),
+        doc.stops.find((x) => x.id === leg.toStopId),
+      ];
+    }
+    const ends = rawEnds.filter(
+      (x): x is NonNullable<typeof x> => !!x && x.lat != null && x.lng != null,
+    );
     if (ends.length === 0) return;
     const bounds = new google.maps.LatLngBounds();
     for (const e of ends) bounds.extend({ lat: e.lat!, lng: e.lng! });

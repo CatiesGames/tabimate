@@ -8,6 +8,8 @@ import { ArrowSquareOut, PencilSimple, Trash, Warning, X } from "@phosphor-icons
 import { LEG_MODE_ICON, LEG_MODE_LABEL } from "@/lib/categories";
 import { cn } from "@/lib/cn";
 import { useSelection, useTrip } from "@/lib/workspace/WorkspaceProvider";
+import { carryLegSaveOp, parseCarryLegSelection, resolveCarryLeg } from "@/lib/carryLeg";
+import type { CarryLeg } from "@/shared/types";
 import { ConfirmDialog, SegmentedChips, Tag } from "@/components/ui";
 import { BookingBadge, bookingWords } from "./badges";
 import { LegEditor } from "./LegEditor";
@@ -17,10 +19,22 @@ export function LegDetailPanel() {
   const { selectedLegId, setSelectedLeg } = useSelection();
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const leg = doc?.legs.find((l) => l.fromStopId === selectedLegId);
-  const from = doc?.stops.find((s) => s.id === leg?.fromStopId);
-  const to = doc?.stops.find((s) => s.id === leg?.toStopId);
+  // 住宿頭尾交通(存在 day 上)與一般交通(legs 表)共用這張卡
+  const carrySel = selectedLegId ? parseCarryLegSelection(selectedLegId) : null;
+  const carryCtx = carrySel && doc ? resolveCarryLeg(doc, carrySel.dayId, carrySel.edge) : null;
+  const leg = carrySel
+    ? carryCtx?.fakeLeg
+    : doc?.legs.find((l) => l.fromStopId === selectedLegId);
+  const from = carrySel ? carryCtx?.from : doc?.stops.find((s) => s.id === leg?.fromStopId);
+  const to = carrySel ? carryCtx?.to : doc?.stops.find((s) => s.id === leg?.toStopId);
   if (!doc || !leg || !from || !to) return null;
+  const saveCarry =
+    carrySel && carryCtx
+      ? (p: CarryLeg | null) => {
+          const { ops, label } = carryLegSaveOp(carryCtx, carrySel.edge, p);
+          editOps(ops, label);
+        }
+      : null;
 
   const Icon = LEG_MODE_ICON[leg.mode];
   const steps = leg.transit?.steps?.filter((st) => st.line || st.departureTime) ?? [];
@@ -155,7 +169,13 @@ export function LegDetailPanel() {
             <Trash className="size-3.5" />
             清除交通
           </button>
-          <LegEditor stop={from} nextStop={to} leg={leg}>
+          <LegEditor
+            stop={from}
+            nextStop={to}
+            leg={leg}
+            saveOverride={saveCarry ?? undefined}
+            removeOverride={saveCarry ? () => saveCarry(null) : undefined}
+          >
             <button
               className={cn(
                 "tm-focus flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
@@ -181,7 +201,12 @@ export function LegDetailPanel() {
         onConfirm={() => {
           setConfirmDelete(false);
           setSelectedLeg(null);
-          editOps([{ op: "remove_leg", fromStopId: leg.fromStopId }], `清除 ${from.name} → ${to.name} 交通`);
+          if (saveCarry) saveCarry(null);
+          else
+            editOps(
+              [{ op: "remove_leg", fromStopId: leg.fromStopId }],
+              `清除 ${from.name} → ${to.name} 交通`,
+            );
         }}
       />
     </section>
