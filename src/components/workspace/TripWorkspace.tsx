@@ -102,7 +102,8 @@ export function TripWorkspace() {
   const [mobileTab, setMobileTab] = useState<"timeline" | "map" | "chat">("timeline");
   const [dayDrawerOpen, setDayDrawerOpen] = useState(false);
   const { activeDayId } = useSelection();
-  const { store } = useChat();
+  const agentCtx = useChat();
+  const { store } = agentCtx;
 
   // 其他線上成員(自己固定顯示在最右的身分頭像,不重複出現在堆疊裡)
   const onlineMembers = roster
@@ -376,6 +377,7 @@ export function TripWorkspace() {
 
   function ChatFab({ active, onClick }: { active: boolean; onClick: () => void }) {
     const phase = store.agentPhase;
+    const fabName = agentCtx.agent.identity.name || "塔比";
     return (
       <button
         onClick={onClick}
@@ -385,7 +387,7 @@ export function TripWorkspace() {
         )}
       >
         <ChatCircle weight="fill" className="size-5" />
-        <span className="text-sm">塔比</span>
+        <span className="text-sm">{fabName}</span>
         {phase !== "idle" && !active && (
           <span className="size-2 animate-pulse rounded-full bg-sun" />
         )}

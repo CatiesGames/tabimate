@@ -40,6 +40,8 @@ export type PresenceRow = {
 export type AgentInfo = {
   available: boolean;
   model: string;
+  /** 塔比變身:自訂名稱/頭貼(null=預設塔比)。 */
+  identity: { name: string | null; avatarVersion: number | null };
   queue: Array<{ messageId: string; userId: string; position: number }>;
   running: { messageId: string; requestedByUserId: string } | null;
 };
@@ -91,7 +93,11 @@ const Selection = createContext<SelectionCtx | null>(null);
 const Presence = createContext<PresenceCtx | null>(null);
 const Realtime = createContext<RealtimeCtx | null>(null);
 const Proposals = createContext<ProposalsCtx | null>(null);
-const Chat = createContext<{ store: ChatStore; agent: AgentInfo } | null>(null);
+const Chat = createContext<{
+  store: ChatStore;
+  agent: AgentInfo;
+  loadOlder: () => Promise<number>;
+} | null>(null);
 
 export const useSession = () => useContext(Session)!;
 export const useTrip = () => useContext(Trip)!;
@@ -120,6 +126,7 @@ export function WorkspaceProvider({
   const [status, setStatus] = useState<RtStatus>("connecting");
   const [pending, setPending] = useState<Proposal[]>([]);
   const [agent, setAgent] = useState<AgentInfo>({
+    identity: { name: null, avatarVersion: null },
     available: false,
     model: "",
     queue: [],
@@ -166,6 +173,17 @@ export function WorkspaceProvider({
     [tripId],
   );
 
+  /** 上滑載入更舊的對話;回傳這次載到的筆數(< limit 表示到頭了)。 */
+  const loadOlderChat = useCallback(async () => {
+    const ordered = chatStoreRef.current.getOrdered();
+    const oldest = ordered.length > 0 ? ordered[0].seq : Number.MAX_SAFE_INTEGER;
+    const data = await apiFetch<{ messages: ChatMessage[] }>(
+      `/api/trips/${tripId}/chat?before=${oldest}&limit=60`,
+    );
+    chatStoreRef.current.loadHistory(data.messages);
+    return data.messages.length;
+  }, [tripId]);
+
   // ---- 初始載入 ----
   useEffect(() => {
     let cancelled = false;
@@ -185,7 +203,7 @@ export function WorkspaceProvider({
         if (cancelled) return;
         setMembers(membersRes.members);
         setDoc(itin);
-        refetchChatSince(0);
+        loadOlderChat();
       } catch (e) {
         // 未登入 → 帶著目標行程回登入頁(後台直達連結/隱藏行程也能順利登入)
         if (e instanceof ApiError && e.status === 401) {
@@ -225,6 +243,11 @@ export function WorkspaceProvider({
           setAgent({
             available: a.available,
             model: a.model,
+            identity:
+              (a as { identity?: AgentInfo["identity"] }).identity ?? {
+                name: null,
+                avatarVersion: null,
+              },
             queue: a.queue ?? [],
             running: a.running ?? null,
           });
@@ -311,6 +334,12 @@ export function WorkspaceProvider({
           break;
         case "chat_block":
           store.onBlock(e.messageId as string, e.idx as number, e.block as never);
+          break;
+        case "agent_identity":
+          setAgent((prev) => ({
+            ...prev,
+            identity: (e.identity as AgentInfo["identity"]) ?? prev.identity,
+          }));
           break;
         case "agent_status": {
           const s = e.state as string;
@@ -509,8 +538,8 @@ export function WorkspaceProvider({
   );
 
   const chatValue = useMemo(
-    () => ({ store: chatStoreRef.current, agent }),
-    [agent],
+    () => ({ store: chatStoreRef.current, agent, loadOlder: loadOlderChat }),
+    [agent, loadOlderChat],
   );
 
   if (!sessionValue) {

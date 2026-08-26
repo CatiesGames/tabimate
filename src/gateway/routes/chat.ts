@@ -15,8 +15,9 @@ import {
   stopActive,
 } from "../agent/runner";
 import { requireTripUser, requireUser } from "../auth";
+import { agentAvatarPath, setAgentIdentity } from "../agent/identity";
 import { publish } from "../bus";
-import { getBlocks, getMessage, listMessages, updateBlock } from "../chat";
+import { getBlocks, getMessage, listMessages, listMessagesBefore, updateBlock } from "../chat";
 import { db, newId, now } from "../db";
 import { HttpError, json, readJson, route } from "../http";
 import { commitChange } from "../itinerary";
@@ -35,7 +36,11 @@ export function registerChatRoutes() {
   route("GET", "/api/trips/:tripId/chat", (ctx) => {
     requireTripUser(ctx, ctx.params.tripId);
     const sinceSeq = Number(ctx.url.searchParams.get("sinceSeq") ?? 0) || 0;
+    const before = Number(ctx.url.searchParams.get("before") ?? 0) || 0;
     const limit = Math.min(Number(ctx.url.searchParams.get("limit") ?? 200) || 200, 500);
+    if (before > 0) {
+      return json({ messages: listMessagesBefore(ctx.params.tripId, before, limit) });
+    }
     return json({ messages: listMessages(ctx.params.tripId, sinceSeq, limit) });
   });
 
@@ -195,6 +200,23 @@ export function registerChatRoutes() {
     });
     noteUserChoice(ctx.params.tripId, user.id, block.question, option.label, !!option.operations?.length);
     return json({ block: updated });
+  });
+
+  // ---- 塔比頭貼 ----
+
+  route("GET", "/api/trips/:tripId/agent/avatar", (ctx) => {
+    requireTripUser(ctx, ctx.params.tripId);
+    const p2 = agentAvatarPath(ctx.params.tripId);
+    if (!p2) throw new HttpError(404, "no_avatar");
+    return new Response(Bun.file(p2), {
+      headers: { "cache-control": "private, max-age=31536000, immutable" },
+    });
+  });
+
+  route("POST", "/api/trips/:tripId/agent/identity/reset", async (ctx) => {
+    requireTripUser(ctx, ctx.params.tripId);
+    await setAgentIdentity(ctx.params.tripId, { reset: true });
+    return json({ ok: true });
   });
 
   // ---- 塔比記憶:確認卡 resolve + 手動 CRUD ----

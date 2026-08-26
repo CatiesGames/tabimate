@@ -7,12 +7,13 @@ import { Brain, PencilSimple, Plus, Robot, Sparkle, Trash, X } from "@phosphor-i
 
 import { apiFetch } from "@/lib/api";
 import { cn } from "@/lib/cn";
-import { useSession } from "@/lib/workspace/WorkspaceProvider";
+import { useChat, useSession } from "@/lib/workspace/WorkspaceProvider";
 import type { AgentMemory } from "@/shared/types";
 import { Button, Input, Spinner } from "@/components/ui";
 
 export function TabiSoulDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { tripId } = useSession();
+  const { agent } = useChat();
   const [items, setItems] = useState<AgentMemory[] | null>(null);
 
   const load = async () => {
@@ -50,6 +51,19 @@ export function TabiSoulDialog({ open, onClose }: { open: boolean; onClose: () =
           </button>
         </header>
 
+        {(agent.identity.name || agent.identity.avatarVersion) && (
+          <div className="mx-4 mt-3 flex items-center gap-2.5 rounded-lg bg-ocean-wash/60 px-3 py-2">
+            <span className="min-w-0 flex-1 text-[13px] text-ink">
+              目前變身為<span className="font-semibold">{agent.identity.name || "(自訂頭貼)"}</span>
+            </span>
+            <button
+              onClick={() => apiFetch(`/api/trips/${tripId}/agent/identity/reset`, { json: {} })}
+              className="tm-focus shrink-0 rounded-md bg-surface px-2.5 py-1 text-xs text-ink-soft transition-colors hover:bg-sunken"
+            >
+              恢復預設塔比
+            </button>
+          </div>
+        )}
         <p className="px-4 pt-3 text-[12px] leading-relaxed text-ink-faint">
           這裡的每一條都會跟著塔比的每一輪對話(重置對話也不會忘)。可以直接在聊天裡請塔比記住,
           它會出確認卡;也可以在這裡手動調整。

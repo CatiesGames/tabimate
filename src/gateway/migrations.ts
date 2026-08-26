@@ -269,6 +269,12 @@ const MIGRATIONS: string[] = [
     updated_at INTEGER NOT NULL
   );
   `,
+  // v14 — 塔比變身:自訂名稱與頭貼(成員要求時塔比自己上網找圖替換)
+  `
+  ALTER TABLE trips ADD COLUMN agent_name TEXT;
+  ALTER TABLE trips ADD COLUMN agent_avatar_ext TEXT;
+  ALTER TABLE trips ADD COLUMN agent_identity_at INTEGER;
+  `,
 ];
 
 export function migrate(db: Database) {

@@ -124,6 +124,16 @@ export function listMessages(tripId: string, sinceSeq = 0, limit = 200): ChatMes
   return rows.map((r) => rowToMessage(r, getBlocks(r.id as string)));
 }
 
+/** 往前分頁:seq < beforeSeq 的最近 limit 筆(舊對話上滑載入)。 */
+export function listMessagesBefore(tripId: string, beforeSeq: number, limit = 60): ChatMessage[] {
+  const rows = db
+    .query(
+      "SELECT * FROM chat_messages WHERE trip_id = ? AND seq < ? ORDER BY seq DESC LIMIT ?",
+    )
+    .all(tripId, beforeSeq, limit) as Array<Record<string, unknown>>;
+  return rows.reverse().map((r) => rowToMessage(r, getBlocks(r.id as string)));
+}
+
 /** gateway 重啟收尾:running 標記為 error,queued 保留(runner 會重新撿起)。 */
 export function recoverJobsOnBoot() {
   const running = db

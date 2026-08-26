@@ -102,6 +102,7 @@ function ChatHeader() {
   const { tripId, memberOf } = useSession();
   const [confirmReset, setConfirmReset] = useState(false);
   const [soulOpen, setSoulOpen] = useState(false);
+  const agentName = useAgentName();
   useSyncExternalStore(store.subscribeStream, store.streamVersion, store.streamVersion);
   const phase = store.agentPhase;
 
@@ -111,9 +112,9 @@ function ChatHeader() {
         aria-label="塔比的靈魂與記憶"
         onClick={() => setSoulOpen(true)}
         title="查看塔比的靈魂與記憶"
-        className="tm-focus relative flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-ocean text-white transition-transform hover:scale-105 active:scale-95"
+        className="tm-focus relative flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full transition-transform hover:scale-105 active:scale-95"
       >
-        <Robot weight="fill" className="size-5" />
+        <AgentFace className="flex size-9 items-center justify-center rounded-full" iconClassName="size-5" />
         <span
           className={cn(
             "absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full ring-2 ring-surface",
@@ -122,7 +123,7 @@ function ChatHeader() {
         />
       </button>
       <div className="min-w-0 flex-1">
-        <p className="font-display text-sm font-semibold text-ink">塔比 <span className="text-[11px] font-normal text-ink-faint">AI 旅遊嚮導</span></p>
+        <p className="font-display text-sm font-semibold text-ink">{agentName} <span className="text-[11px] font-normal text-ink-faint">AI 旅遊嚮導</span></p>
         <p className="flex items-center gap-1.5 text-[11px] text-ink-soft">
           {phase === "idle" && "隨時待命 — 行程、查證、交通、推薦都找我"}
           {phase === "queued" && "已收到,排隊處理中…"}
@@ -182,7 +183,35 @@ function MessageList({ messages }: { messages: ChatMessage[] }) {
   const [unseen, setUnseen] = useState(0);
   const [floatingDate, setFloatingDate] = useState<string | null>(null);
   const floatingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { store } = useChat();
+  const { store, loadOlder } = useChat();
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const loadingOlderRef = useRef(false);
+
+  // 上滑到頂 → 載入更舊的對話(保持目前閱讀位置)
+  const maybeLoadOlder = () => {
+    const el = listRef.current;
+    if (!el || !hasMore || loadingOlderRef.current) return;
+    if (el.scrollTop > 80) return;
+    loadingOlderRef.current = true;
+    setLoadingOlder(true);
+    const prevH = el.scrollHeight;
+    const prevTop = el.scrollTop;
+    loadOlder()
+      .then((n) => {
+        if (n < 60) setHasMore(false);
+        requestAnimationFrame(() => {
+          const el2 = listRef.current;
+          if (el2 && n > 0) el2.scrollTop = el2.scrollHeight - prevH + prevTop;
+          loadingOlderRef.current = false;
+          setLoadingOlder(false);
+        });
+      })
+      .catch(() => {
+        loadingOlderRef.current = false;
+        setLoadingOlder(false);
+      });
+  };
   useSyncExternalStore(store.subscribeStream, store.streamVersion, store.streamVersion);
 
   const scrollToBottom = useCallback((smooth = false) => {
@@ -204,6 +233,7 @@ function MessageList({ messages }: { messages: ChatMessage[] }) {
   const onScroll = () => {
     const el = listRef.current;
     if (!el) return;
+    maybeLoadOlder();
     const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
     setStickBottom(nearBottom);
     if (nearBottom) setUnseen(0);
@@ -227,6 +257,14 @@ function MessageList({ messages }: { messages: ChatMessage[] }) {
         onScroll={onScroll}
         className="tm-scroll flex h-full flex-col gap-3 overflow-x-hidden overflow-y-auto px-3 py-3"
       >
+        {loadingOlder && (
+          <p className="flex items-center justify-center gap-2 py-1 text-[11px] text-ink-faint">
+            <Spinner className="size-3.5" /> 載入更早的對話…
+          </p>
+        )}
+        {!hasMore && messages.length > 0 && (
+          <p className="py-1 text-center text-[11px] text-ink-faint">— 對話從這裡開始 —</p>
+        )}
         {messages.length === 0 && <EmptyChat />}
         {messages.map((m, i) => {
           const prev = messages[i - 1];
@@ -271,7 +309,7 @@ function EmptyChat() {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
       <span className="flex size-12 items-center justify-center rounded-2xl bg-ocean-wash">
-        <Robot weight="duotone" className="size-7 text-ocean" />
+        <AgentFace className="flex size-10 items-center justify-center rounded-full" iconClassName="size-6" />
       </span>
       <p className="text-sm font-medium text-ink">跟塔比一起規劃這趟旅程</p>
       <p className="text-xs leading-relaxed text-ink-soft">
@@ -283,6 +321,32 @@ function EmptyChat() {
       </p>
     </div>
   );
+}
+
+/** 塔比頭像:變身後顯示自訂頭貼,否則預設機器人。 */
+function AgentFace({ className, iconClassName }: { className: string; iconClassName: string }) {
+  const { agent } = useChat();
+  const { tripId } = useSession();
+  if (agent.identity.avatarVersion) {
+    return (
+      <img
+        src={`/api/trips/${tripId}/agent/avatar?v=${agent.identity.avatarVersion}`}
+        alt={agent.identity.name ?? "塔比"}
+        className={cn(className, "overflow-hidden object-cover")}
+      />
+    );
+  }
+  return (
+    <span className={cn(className, "bg-ocean text-white")}>
+      <Robot weight="fill" className={iconClassName} />
+    </span>
+  );
+}
+
+/** 塔比目前的名字(變身後為自訂名稱)。 */
+function useAgentName() {
+  const { agent } = useChat();
+  return agent.identity.name || "塔比";
 }
 
 const MessageRow = function MessageRow({ message }: { message: ChatMessage }) {
@@ -393,9 +457,11 @@ function UserMessageActions({ message }: { message: ChatMessage }) {
 function ToolRunGroup({
   items,
   live,
+  ended,
 }: {
   items: Array<{ block: Extract<ChatBlock, { kind: "tool_status" }>; idx: number }>;
   live: boolean;
+  ended?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
@@ -408,7 +474,7 @@ function ToolRunGroup({
   }, [live, items.length, items[items.length - 1]?.block.state]);
 
   if (items.length === 1 && !live) {
-    return <ToolStatusBlock block={items[0].block} />;
+    return <ToolStatusBlock block={items[0].block} ended={ended} />;
   }
 
   if (live) {
@@ -418,7 +484,7 @@ function ToolRunGroup({
         className="tm-noscrollbar flex max-h-[104px] flex-col gap-1.5 overflow-y-auto"
       >
         {items.map(({ block, idx }) => (
-          <ToolStatusBlock key={idx} block={block} />
+          <ToolStatusBlock key={idx} block={block} ended={ended} />
         ))}
       </div>
     );
@@ -444,7 +510,7 @@ function ToolRunGroup({
       {expanded && (
         <div className="flex flex-col gap-1.5 border-t border-line p-2">
           {items.map(({ block, idx }) => (
-            <ToolStatusBlock key={idx} block={block} />
+            <ToolStatusBlock key={idx} block={block} ended={ended} />
           ))}
         </div>
       )}
@@ -500,15 +566,14 @@ function AgentMessage({ message }: { message: ChatMessage }) {
   const isLive = store.liveMessageId === message.id;
   const liveText = isLive ? store.liveText : "";
   const requester = message.userId ? memberOf(message.userId) : null;
+  const agentMsgName = useAgentName();
 
   return (
     <div className="flex gap-2">
-      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-ocean text-white">
-        <Robot weight="fill" className="size-4" />
-      </span>
+      <AgentFace className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full" iconClassName="size-4" />
       <div className="min-w-0 flex-1">
         <p className="flex items-baseline gap-2 text-[11px] text-ink-faint">
-          <span className="font-medium text-ocean-deep">塔比</span>
+          <span className="font-medium text-ocean-deep">{agentMsgName}</span>
           {requester && <span>回應 {requester.name}</span>}
           <span className="tm-num">{clockLabel(message.createdAt)}</span>
           {message.status === "stopped" && <Tag tone="coral">已中止</Tag>}
@@ -525,6 +590,7 @@ function AgentMessage({ message }: { message: ChatMessage }) {
                   gi === groupBlocks(message.blocks).length - 1 &&
                   group.items.some((it) => it.block.state === "running")
                 }
+                ended={!isLive}
               />
             ) : (
               <BlockRenderer

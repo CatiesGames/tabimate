@@ -331,23 +331,30 @@ export function MiniMarkdown({ text }: { text: string }) {
 
 export function ToolStatusBlock({
   block,
+  ended,
 }: {
   block: Extract<ChatBlock, { kind: "tool_status" }>;
+  /** 訊息已結束(中止/錯誤/完成):進行中的 pill 改為靜態「已中止」,不再轉。 */
+  ended?: boolean;
 }) {
+  const state = ended && block.state === "running" ? "stopped" : block.state;
   return (
     <div
       className={cn(
         "rounded-lg border px-2.5 py-1.5 text-xs",
-        block.state === "running" && "border-ocean/30 bg-ocean-wash text-ocean-deep",
-        block.state === "done" && "border-line bg-sunken/60 text-ink-faint",
-        block.state === "failed" && "border-sun/50 bg-sun-wash text-sun-deep",
+        state === "running" && "border-ocean/30 bg-ocean-wash text-ocean-deep",
+        state === "done" && "border-line bg-sunken/60 text-ink-faint",
+        state === "stopped" && "border-line bg-sunken/60 text-ink-faint",
+        state === "failed" && "border-sun/50 bg-sun-wash text-sun-deep",
       )}
     >
       <div className="flex items-center gap-2">
-        {block.state === "running" ? (
+        {state === "running" ? (
           <Spinner className="size-3.5 shrink-0" />
-        ) : block.state === "done" ? (
+        ) : state === "done" ? (
           <Check weight="bold" className="size-3.5 shrink-0 text-leaf" />
+        ) : state === "stopped" ? (
+          <X weight="bold" className="size-3.5 shrink-0 text-ink-faint" />
         ) : (
           <Warning weight="fill" className="size-3.5 shrink-0" />
         )}
@@ -355,15 +362,16 @@ export function ToolStatusBlock({
         <span
           className={cn(
             "tm-noscrollbar min-w-0 flex-1 overflow-x-auto whitespace-nowrap",
-            block.state === "running" &&
+            state === "running" &&
               "bg-[linear-gradient(90deg,currentColor_40%,rgba(14,155,164,0.35)_50%,currentColor_60%)] bg-[length:200%_100%] bg-clip-text animate-[tm-shimmer_1.8s_linear_infinite]",
           )}
         >
           {block.label}
-          {block.state === "failed" && " — 這次沒成功,塔比會自行調整"}
+          {state === "failed" && " — 這次沒成功,塔比會自行調整"}
+          {state === "stopped" && "(已中止)"}
         </span>
       </div>
-      {block.state === "failed" && block.detail && (
+      {state === "failed" && block.detail && (
         <p className="mt-1 pl-5.5 text-[11px] leading-relaxed opacity-80">
           原因:{block.detail}
         </p>

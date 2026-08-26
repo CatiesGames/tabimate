@@ -14,6 +14,7 @@ import { createProposal } from "../proposals";
 import { getTripRow, listVersions, loadDoc, tripMeta } from "../itinerary";
 import { getSetting } from "../settings";
 import { setAgentFocus } from "../ws";
+import { setAgentIdentity } from "./identity";
 import { appendRichBlock } from "./runner";
 
 const OPERATIONS_DOC = `每個 operation 是一個物件,op 欄位決定種類:
@@ -291,6 +292,22 @@ export function registerCoreTools() {
       };
       appendRichBlock(job.tripId, block);
       return { ok: true, message: "查證結果已記錄並顯示。" };
+    },
+  });
+
+  registerTool({
+    name: "set_identity",
+    description:
+      "變身:更新你的名稱與頭貼(成員明確要求你變成某個角色時才用)。avatarImageUrl 要是直接指向圖檔(.jpg/.png/.webp)的公開網址,伺服器會下載存檔並即時顯示在聊天室;失敗會回錯誤原因,換個網址重試。reset=true 變回預設塔比。",
+    schema: z.object({
+      name: z.string().min(1).max(20).optional().describe("新名稱"),
+      avatarImageUrl: z.string().url().optional().describe("頭貼圖檔網址(直接指向圖檔)"),
+      reset: z.boolean().optional().describe("true=變回預設塔比(清除名稱與頭貼)"),
+    }),
+    handler: async (args, job) => {
+      const r = await setAgentIdentity(job.tripId, args);
+      if ("error" in r) return r;
+      return { ok: true, message: "身分已更新,聊天室已即時顯示新名稱/頭貼。" };
     },
   });
 
