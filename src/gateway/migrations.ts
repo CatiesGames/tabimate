@@ -275,6 +275,10 @@ const MIGRATIONS: string[] = [
   ALTER TABLE trips ADD COLUMN agent_avatar_ext TEXT;
   ALTER TABLE trips ADD COLUMN agent_identity_at INTEGER;
   `,
+  // v15 — 變身=個性的延伸:角色語氣/人設隨變身一體設定,變回時整套卸下
+  `
+  ALTER TABLE trips ADD COLUMN agent_role_persona TEXT;
+  `,
 ];
 
 export function migrate(db: Database) {

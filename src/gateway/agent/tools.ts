@@ -302,7 +302,12 @@ export function registerCoreTools() {
     schema: z.object({
       name: z.string().min(1).max(20).optional().describe("新名稱"),
       avatarImageUrl: z.string().url().optional().describe("頭貼圖檔網址(直接指向圖檔)"),
-      reset: z.boolean().optional().describe("true=變回預設塔比(清除名稱與頭貼)"),
+      rolePersona: z
+        .string()
+        .max(500)
+        .optional()
+        .describe("角色的說話口吻與人設(兩三句),變身時一起給;變回預設時自動清除"),
+      reset: z.boolean().optional().describe("true=變回預設塔比(清除名稱、頭貼與角色口吻)"),
     }),
     handler: async (args, job) => {
       const r = await setAgentIdentity(job.tripId, args);

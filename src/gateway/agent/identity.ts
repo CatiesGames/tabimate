@@ -16,15 +16,28 @@ const EXT_BY_TYPE: Record<string, string> = {
   "image/gif": "gif",
 };
 
-export type AgentIdentity = { name: string | null; avatarVersion: number | null };
+export type AgentIdentity = {
+  name: string | null;
+  avatarVersion: number | null;
+  /** 角色語氣/人設(變身的一部分,變回預設時一起清除;與基礎個性 persona 記憶互不影響)。 */
+  rolePersona: string | null;
+};
 
 export function getAgentIdentity(tripId: string): AgentIdentity {
   const row = db
-    .query("SELECT agent_name, agent_avatar_ext, agent_identity_at FROM trips WHERE id = ?")
-    .get(tripId) as { agent_name: string | null; agent_avatar_ext: string | null; agent_identity_at: number | null } | null;
+    .query(
+      "SELECT agent_name, agent_avatar_ext, agent_identity_at, agent_role_persona FROM trips WHERE id = ?",
+    )
+    .get(tripId) as {
+    agent_name: string | null;
+    agent_avatar_ext: string | null;
+    agent_identity_at: number | null;
+    agent_role_persona: string | null;
+  } | null;
   return {
     name: row?.agent_name ?? null,
     avatarVersion: row?.agent_avatar_ext ? (row.agent_identity_at ?? 1) : null,
+    rolePersona: row?.agent_role_persona ?? null,
   };
 }
 
@@ -47,13 +60,13 @@ function removeAvatarFiles(tripId: string) {
 
 export async function setAgentIdentity(
   tripId: string,
-  args: { name?: string; avatarImageUrl?: string; reset?: boolean },
+  args: { name?: string; avatarImageUrl?: string; rolePersona?: string; reset?: boolean },
 ): Promise<{ ok: true; identity: AgentIdentity } | { error: string }> {
   const t = now();
   if (args.reset) {
     removeAvatarFiles(tripId);
     db.run(
-      "UPDATE trips SET agent_name = NULL, agent_avatar_ext = NULL, agent_identity_at = ? WHERE id = ?",
+      "UPDATE trips SET agent_name = NULL, agent_avatar_ext = NULL, agent_role_persona = NULL, agent_identity_at = ? WHERE id = ?",
       [t, tripId],
     );
   } else {
@@ -81,6 +94,13 @@ export async function setAgentIdentity(
       await Bun.write(join(AVATAR_DIR, `${tripId}.${ext}`), buf);
       db.run("UPDATE trips SET agent_avatar_ext = ?, agent_identity_at = ? WHERE id = ?", [
         ext,
+        t,
+        tripId,
+      ]);
+    }
+    if (args.rolePersona !== undefined) {
+      db.run("UPDATE trips SET agent_role_persona = ?, agent_identity_at = ? WHERE id = ?", [
+        args.rolePersona.trim().slice(0, 500) || null,
         t,
         tripId,
       ]);

@@ -40,8 +40,8 @@ export type PresenceRow = {
 export type AgentInfo = {
   available: boolean;
   model: string;
-  /** 塔比變身:自訂名稱/頭貼(null=預設塔比)。 */
-  identity: { name: string | null; avatarVersion: number | null };
+  /** 塔比變身:自訂名稱/頭貼/角色口吻(null=預設塔比)。 */
+  identity: { name: string | null; avatarVersion: number | null; rolePersona: string | null };
   queue: Array<{ messageId: string; userId: string; position: number }>;
   running: { messageId: string; requestedByUserId: string } | null;
 };
@@ -126,7 +126,7 @@ export function WorkspaceProvider({
   const [status, setStatus] = useState<RtStatus>("connecting");
   const [pending, setPending] = useState<Proposal[]>([]);
   const [agent, setAgent] = useState<AgentInfo>({
-    identity: { name: null, avatarVersion: null },
+    identity: { name: null, avatarVersion: null, rolePersona: null },
     available: false,
     model: "",
     queue: [],
@@ -247,6 +247,7 @@ export function WorkspaceProvider({
               (a as { identity?: AgentInfo["identity"] }).identity ?? {
                 name: null,
                 avatarVersion: null,
+                rolePersona: null,
               },
             queue: a.queue ?? [],
             running: a.running ?? null,

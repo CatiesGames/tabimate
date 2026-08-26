@@ -55,6 +55,11 @@ export function TabiSoulDialog({ open, onClose }: { open: boolean; onClose: () =
           <div className="mx-4 mt-3 flex items-center gap-2.5 rounded-lg bg-ocean-wash/60 px-3 py-2">
             <span className="min-w-0 flex-1 text-[13px] text-ink">
               目前變身為<span className="font-semibold">{agent.identity.name || "(自訂頭貼)"}</span>
+              {agent.identity.rolePersona && (
+                <span className="mt-0.5 block text-[12px] leading-relaxed text-ink-soft">
+                  {agent.identity.rolePersona}
+                </span>
+              )}
             </span>
             <button
               onClick={() => apiFetch(`/api/trips/${tripId}/agent/identity/reset`, { json: {} })}
@@ -76,9 +81,9 @@ export function TabiSoulDialog({ open, onClose }: { open: boolean; onClose: () =
         ) : (
           <div className="flex flex-col gap-4 p-4">
             <MemorySection
-              title="個性"
+              title="基礎個性"
               icon={<Sparkle weight="fill" className="size-4 text-coral" />}
-              hint="塔比的說話方式與風格,例如「講話再簡短一點」"
+              hint="不隨變身改變的說話方式,例如「講話再簡短一點」"
               kind="persona"
               items={personas}
               tripId={tripId}
