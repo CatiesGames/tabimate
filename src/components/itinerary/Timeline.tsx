@@ -8,8 +8,8 @@ import { cn } from "@/lib/cn";
 import {
   carryOverLodging,
   detectTimeConflicts,
-  isDayVisitLodging,
   isOvernightLodging,
+  primaryLodgingOf,
 } from "@/shared/conflicts";
 import type { CarryLeg, Day, Leg, Stop } from "@/shared/types";
 import {
@@ -95,10 +95,6 @@ export function Timeline() {
       for (let i = 0; i < mids.length; i++) {
         if (ev.clientY > mids[i]) over = i;
       }
-      // 末位住宿固定收尾:其他卡片不能拖到它後面
-      if (endsWithLodging && stop.category !== "lodging") {
-        over = Math.min(over, mids.length - 2);
-      }
       setDragging((d) => (d ? { ...d, y: dy, overIndex: over } : d));
     };
     const onUp = () => {
@@ -125,15 +121,10 @@ export function Timeline() {
 
   const carryLodging = carryOverLodging(doc.days, doc.stops, activeDayId);
   const activeDay = doc.days.find((d) => d.id === activeDayId) ?? null;
-  // 入住日:住宿在當天末位時固定收尾,「新增地點」移到它上面(新地點插在住宿之前)
-  const lastStop = stops[stops.length - 1] ?? null;
-  const endsWithLodging =
-    !!lastStop && lastStop.category === "lodging" && !isDayVisitLodging(lastStop);
-  // 先到飯店放行李、之後還有行程:當天結尾自動出現「今晚回這裡住」錨列
-  const checkinLodging =
-    [...stops].reverse().find((s) => s.category === "lodging" && !isDayVisitLodging(s)) ?? null;
+  // 住宿主卡(入住日第一張 lodging):主卡不在末位時,結尾自動出現「今晚回這裡住」錨列
+  const primaryStop = primaryLodgingOf(doc.days, doc.stops, activeDayId);
   const checkinMidday =
-    checkinLodging && stops.indexOf(checkinLodging) < stops.length - 1 ? checkinLodging : null;
+    primaryStop && stops[stops.length - 1]?.id !== primaryStop.id ? primaryStop : null;
 
   return (
     <div ref={listRef} className="flex flex-col">
@@ -170,14 +161,8 @@ export function Timeline() {
         const leg = legOf(stop.id);
         const nextStop = stops[i + 1];
 
-        const addBeforeLodging = endsWithLodging && i === stops.length - 1;
         return (
           <div key={stop.id}>
-            {addBeforeLodging && (
-              <div className="mt-2 mb-2">
-                <AddStop dayId={activeDayId} position={i} />
-              </div>
-            )}
           <div
             data-stop-wrap
             style={
@@ -260,7 +245,7 @@ export function Timeline() {
                         </Hint>
                       )}
                       {stop.startTime}
-                      {stop.category === "lodging" && !isDayVisitLodging(stop) ? (
+                      {stop.id === primaryStop?.id ? (
                         <span className="text-[11px] font-normal text-ink-faint">
                           入住{isOvernightLodging(stop) && ` · 退房 ${stop.endTime}`}
                         </span>
@@ -333,15 +318,14 @@ export function Timeline() {
                       </button>
                     </LegEditor>
                   )}
-                  <Hint tip={"在這裡插入行程"}>
-                    <button
-                      aria-label="在此插入行程"
-                      onClick={() => setGapAdd(gapAdd === i + 1 ? null : i + 1)}
-                      className="tm-focus flex size-6 shrink-0 items-center justify-center rounded-full text-ink-faint opacity-50 transition-[opacity,color,background-color] hover:bg-coral-wash hover:text-coral-deep hover:opacity-100"
-                    >
-                      <Plus weight="bold" className="size-3.5" />
-                    </button>
-                  </Hint>
+                  <button
+                    aria-label="在此插入行程"
+                    onClick={() => setGapAdd(gapAdd === i + 1 ? null : i + 1)}
+                    className="tm-focus flex shrink-0 items-center gap-1 rounded-full border border-dashed border-line-strong px-3 py-1.5 text-xs text-ink-soft transition-[color,border-color,background-color] hover:border-coral hover:bg-coral-wash hover:text-coral-deep"
+                  >
+                    <Plus weight="bold" className="size-3.5" />
+                    新增地點
+                  </button>
                 </div>
               </div>
             )}
@@ -360,11 +344,9 @@ export function Timeline() {
         );
       })}
 
-      {!endsWithLodging && (
-        <div className="mt-2">
-          <AddStop dayId={activeDayId} />
-        </div>
-      )}
+      <div className="mt-2">
+        <AddStop dayId={activeDayId} />
+      </div>
 
       {/* 一天的結尾是回住宿:續住中間天,或入住日先放了行李(住宿不在末位) */}
       {activeDay &&

@@ -11,7 +11,7 @@ import {
   staticMap,
   type Waypoint,
 } from "../google";
-import { carryOverLodging, isDayVisitLodging } from "../../shared/conflicts";
+import { carryOverLodging, primaryLodgingOf } from "../../shared/conflicts";
 import { db } from "../db";
 import { loadDoc } from "../itinerary";
 import { HttpError, json, route } from "../http";
@@ -110,11 +110,9 @@ export function registerGoogleRoutes() {
     const dayStops = doc.stops
       .filter((s2) => s2.dayId === dayId)
       .sort((a, b) => a.position - b.position);
-    const ownLodging = [...dayStops]
-      .reverse()
-      .find((s2) => s2.category === "lodging" && !isDayVisitLodging(s2));
+    const ownLodging = primaryLodgingOf(doc.days, doc.stops, dayId);
     const midday =
-      !carry && ownLodging && dayStops.indexOf(ownLodging) < dayStops.length - 1
+      !carry && ownLodging && dayStops[dayStops.length - 1]?.id !== ownLodging.id
         ? ownLodging
         : null;
     const lodging =

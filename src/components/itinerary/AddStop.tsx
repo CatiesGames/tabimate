@@ -6,7 +6,7 @@ import { Bed, MagnifyingGlass, MapPin, Plus } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api";
 import { CATEGORY_META, guessCategory } from "@/lib/categories";
 import { cn } from "@/lib/cn";
-import { carryOverLodging, isDayVisitLodging } from "@/shared/conflicts";
+import { carryOverLodging, primaryLodgingOf } from "@/shared/conflicts";
 import { STOP_CATEGORIES, type StopCategory } from "@/shared/config";
 import type { PlaceInfo } from "@/shared/types";
 import { useSession, useTrip } from "@/lib/workspace/WorkspaceProvider";
@@ -79,13 +79,7 @@ export function AddStop({
     if (!doc) return null;
     const carry = carryOverLodging(doc.days, doc.stops, dayId);
     if (carry) return carry.stop;
-    const dayStops = doc.stops
-      .filter((s) => s.dayId === dayId)
-      .sort((a, b) => a.position - b.position);
-    return (
-      [...dayStops].reverse().find((s) => s.category === "lodging" && !isDayVisitLodging(s)) ??
-      null
-    );
+    return primaryLodgingOf(doc.days, doc.stops, dayId);
   })();
 
   const addRest = async () => {

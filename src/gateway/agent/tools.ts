@@ -42,7 +42,7 @@ bookingType:none|reservation_required(不訂進不去)|ticket_required(要先買
 - 排程檢查:第一個行程早於離開時間、最後一個行程結束晚於回到時間,都會被列入 timeConflictStopIds。
 - 入住日「最後行程→住宿」是普通 leg(住宿是當天真實 stop,用 set_leg);退房日早上的「住宿→首行程」交通用 lodgingMorningLeg。
 - 入住日「先到飯店放行李再出門」:住宿 stop 放在它實際的時間位置(如 15:00),之後照排晚上行程;只要住宿不在當天末位,畫面結尾會自動出現「今晚回這裡住」錨列,晚上回程時間/交通一樣用 update_day 的 lodgingReturnTime/lodgingEveningLeg。不要為了收尾把住宿硬移到最後。
-- 白天中途回飯店休息(午休/放戰利品):加一個同飯店的 lodging stop,startTime/endTime 都在當天(如 14:00-16:00)。系統以「起訖同日」識別它是休息不是過夜,不會影響續住判定;真正的過夜住宿永遠只有入住那天那一筆。`;
+- **住宿主卡 = 入住日排序最前的那張 lodging 卡**(check-in/退房/nights 都設定在它身上);同一天在主卡之後再出現的 lodging(以及續住日的任何 lodging)都是「回飯店」輕量卡(中途休息/放戰利品),startTime/endTime 設當天時段即可,不影響續住判定。真正的過夜住宿永遠只有入住那天的主卡那一筆。\n- 主卡不必是當天最後一項:主卡在末位=晚上直接到飯店收尾;主卡之後還有行程時畫面結尾會自動出現「今晚回這裡住」錨列。`;
 
 export function registerCoreTools() {
   registerTool({

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { carryOverLodging, detectTimeConflicts, isOvernightLodging } from "./conflicts";
+import { carryOverLodging, detectTimeConflicts, isOvernightLodging, primaryLodgingOf } from "./conflicts";
 import type { Day, Stop } from "./types";
 
 const day = (id: string, position: number): Day => ({
@@ -168,6 +168,27 @@ describe("住宿跨夜", () => {
     expect(detectTimeConflicts([dLate, days[1], days[2]], stops).has("b")).toBe(true);
     const dOk = { ...days[0], lodgingReturnTime: "22:00" };
     expect(detectTimeConflicts([dOk, days[1], days[2]], stops).has("b")).toBe(false);
+  });
+
+  test("主卡=入住日第一張:之後同天的同飯店卡是輕量卡,nights 從主卡讀", () => {
+    const stops = [
+      { ...lodgingN("main", "d1", 2, "15:00", "09:30"), position: 1 }, // 15:00 放行李(第一張)
+      stop("evening", "d1", 2, "18:00", "20:00"),
+      { ...stop("back", "d1", 3, "20:30", null, "lodging") }, // 晚上回飯店(第二張)
+    ];
+    expect(primaryLodgingOf(days, stops, "d1")?.id).toBe("main");
+    // 續住依主卡 nights=2:d2 中間天、d3 退房日
+    expect(carryOverLodging(days, stops, "d2")?.stop.id).toBe("main");
+    expect(carryOverLodging(days, stops, "d3")?.isCheckoutDay).toBe(true);
+  });
+
+  test("續住中間天沒有主卡(當天 lodging 全是回飯店卡);退房日可換旅館", () => {
+    const stops = [
+      lodgingN("hotelA", "d1", 1, "20:00", "10:00"), // d2 退房
+      lodgingN("hotelB", "d2", 1, "15:00", "09:00"), // d2 換旅館
+    ];
+    expect(primaryLodgingOf(days, stops, "d2")?.id).toBe("hotelB");
+    expect(carryOverLodging(days, stops, "d3")?.stop.id).toBe("hotelB");
   });
 
   test("跨夜住宿的 endTime 不影響當天後續(住宿不在末位)", () => {

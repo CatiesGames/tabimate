@@ -10,7 +10,7 @@ import { apiFetch, ApiError } from "@/lib/api";
 import { CATEGORY_META, LEG_MODE_ICON, LEG_MODE_LABEL } from "@/lib/categories";
 import { cn } from "@/lib/cn";
 import { dayDateLabel } from "@/lib/dates";
-import { carryOverLodging, isDayVisitLodging, isOvernightLodging } from "@/shared/conflicts";
+import { carryOverLodging, isOvernightLodging, primaryLodgingOf } from "@/shared/conflicts";
 import type { CarryLeg, Day, Itinerary, Leg, Stop } from "@/shared/types";
 
 type Member = { id: string; name: string; color: string };
@@ -193,11 +193,9 @@ export function PrintView({ tripId }: { tripId: string }) {
             {(() => {
               const carry = carryOverLodging(days, doc.stops, day.id);
               // 尾列:續住中間天,或入住日先放了行李(住宿不在末位)
-              const checkin = [...stops]
-                .reverse()
-                .find((st) => st.category === "lodging" && !isDayVisitLodging(st));
+              const checkin = primaryLodgingOf(days, doc.stops, day.id);
               const midday =
-                checkin && stops.indexOf(checkin) < stops.length - 1 ? checkin : null;
+                checkin && stops[stops.length - 1]?.id !== checkin.id ? checkin : null;
               const bottom =
                 carry && !carry.isCheckoutDay
                   ? carry

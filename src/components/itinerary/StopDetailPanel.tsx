@@ -14,7 +14,7 @@ import {
 } from "@phosphor-icons/react";
 
 import { CATEGORY_META } from "@/lib/categories";
-import { carryOverLodging, isDayVisitLodging, isOvernightLodging } from "@/shared/conflicts";
+import { carryOverLodging, isOvernightLodging, primaryLodgingOf } from "@/shared/conflicts";
 import { cn } from "@/lib/cn";
 import { STOP_CATEGORIES, type BookingStatus } from "@/shared/config";
 import type { Stop } from "@/shared/types";
@@ -35,6 +35,19 @@ export function StopDetailPanel() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
+  // 選中卡片時按倒退鍵/Delete → 開啟同一個刪除確認
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Backspace" && e.key !== "Delete") return;
+      const t = e.target as HTMLElement;
+      if (t.closest("input, textarea, [contenteditable], [role='dialog'], [data-radix-popper-content-wrapper]")) return;
+      e.preventDefault();
+      setConfirmDelete(true);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   const stop = doc?.stops.find((s) => s.id === selectedStopId);
   if (!doc || !stop) return null;
   const meta = CATEGORY_META[stop.category];
@@ -53,6 +66,9 @@ export function StopDetailPanel() {
     prevStop?.endTime ??
     prevStop?.startTime ??
     (carry?.isCheckoutDay && isOvernightLodging(carry.stop) ? carry.stop.endTime : null);
+
+  // 住宿主卡(入住日第一張)才有連泊/入住退房設定;其餘 lodging 是回飯店輕量卡
+  const isPrimaryLodging = primaryLodgingOf(doc.days, doc.stops, stop.dayId)?.id === stop.id;
 
   const patch = (p: Parameters<typeof buildPatchOp>[1], summary: string) =>
     editOps([buildPatchOp(stop.id, p)], summary);
@@ -133,23 +149,23 @@ export function StopDetailPanel() {
               defaultTime={startDefault}
             />
             <span className="text-ink-faint">
-              {stop.category === "lodging" && !isDayVisitLodging(stop) ? "入住 →" : "-"}
+              {isPrimaryLodging ? "入住 →" : "-"}
             </span>
             <TimeField
               value={stop.endTime}
               onChange={(v) => patch({ endTime: v }, `調整 ${stop.name} 時間`)}
-              defaultTime={stop.category === "lodging" ? null : stop.startTime}
+              defaultTime={isPrimaryLodging ? null : stop.startTime}
               defaultLabel={null}
-              placeholder={stop.category === "lodging" ? "退房" : "--:--"}
+              placeholder={isPrimaryLodging ? "退房" : "--:--"}
             />
-            {stop.category === "lodging" && !isDayVisitLodging(stop) && (
+            {isPrimaryLodging && (
               <span className="text-[11px] text-ink-faint">
                 退房時間(隔天早上),會顯示在隔天的續住列
               </span>
             )}
           </div>
           <div className="flex items-center gap-1">
-            {stop.category === "lodging" && !isDayVisitLodging(stop) ? (
+            {isPrimaryLodging ? (
               <>
                 {days.map((d, i) => {
                   const nights = Math.max(1, stop.nights ?? 1);
