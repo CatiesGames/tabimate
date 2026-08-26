@@ -192,7 +192,7 @@ function MdImage({ alt, src }: { alt: string; src: string }) {
 
 function inline(text: string, keyPrefix: string): React.ReactNode[] {
   const out: React.ReactNode[] = [];
-  const re = /(!\[[^\]]*\]\([^)]+\)|\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)]+\)|https?:\/\/\S+)/g;
+  const re = /(!\[[^\]]*\]\([^)]+\)|\*\*[^*]+\*\*|\*[^*\n]+\*|`[^`]+`|\[[^\]]+\]\([^)]+\)|https?:\/\/\S+)/g;
   let last = 0;
   let m: RegExpExecArray | null;
   let k = 0;
@@ -208,6 +208,12 @@ function inline(text: string, keyPrefix: string): React.ReactNode[] {
         <strong key={key} className="font-semibold text-ink">
           {tok.slice(2, -2)}
         </strong>,
+      );
+    } else if (tok.startsWith("*")) {
+      out.push(
+        <em key={key} className="italic">
+          {tok.slice(1, -1)}
+        </em>,
       );
     } else if (tok.startsWith("`")) {
       out.push(
@@ -256,6 +262,25 @@ export function MiniMarkdown({ text }: { text: string }) {
     listBuf = [];
   };
 
+  // > 引用:連續引用行合成一個 blockquote
+  let quoteBuf: string[] = [];
+  const flushQuote = () => {
+    if (quoteBuf.length === 0) return;
+    out.push(
+      <blockquote
+        key={`q${key++}`}
+        className="my-1.5 border-l-2 border-ocean/45 pl-3 text-ink-soft"
+      >
+        {quoteBuf.map((q, i) => (
+          <p key={i} className="leading-relaxed">
+            {inline(q, `q${key}-${i}`)}
+          </p>
+        ))}
+      </blockquote>,
+    );
+    quoteBuf = [];
+  };
+
   const isTableRow = (t: string) => t.startsWith("|") && t.endsWith("|") && t.length > 2;
   const isDivider = (t: string) => /^\|[\s:|-]+\|$/.test(t) && t.includes("-");
   for (let li = 0; li < lines.length; li++) {
@@ -264,6 +289,7 @@ export function MiniMarkdown({ text }: { text: string }) {
     // markdown 表格:| 標題 | … | 且下一行是 |---|---|
     if (isTableRow(t) && isDivider((lines[li + 1] ?? "").trim())) {
       flushList();
+      flushQuote();
       const parseRow = (row: string) =>
         row.trim().slice(1, -1).split("|").map((c) => c.trim());
       const header = parseRow(t);
@@ -302,12 +328,21 @@ export function MiniMarkdown({ text }: { text: string }) {
       li = j - 1;
       continue;
     }
+    if (/^>\s?/.test(t)) {
+      flushList();
+      quoteBuf.push(t.replace(/^>\s?/, ""));
+      continue;
+    }
     if (/^[-*] /.test(t)) {
+      flushQuote();
       listBuf.push(t.slice(2));
       continue;
     }
     flushList();
-    if (t.startsWith("### ") || t.startsWith("## ") || t.startsWith("# ")) {
+    flushQuote();
+    if (/^(-{3,}|_{3,}|\*{3,})$/.test(t)) {
+      out.push(<hr key={`hr${key++}`} className="my-2 border-t border-line" />);
+    } else if (t.startsWith("### ") || t.startsWith("## ") || t.startsWith("# ")) {
       out.push(
         <p key={`h${key++}`} className="mt-1.5 font-semibold text-ink">
           {inline(t.replace(/^#+\s/, ""), `h${key}`)}
@@ -324,6 +359,7 @@ export function MiniMarkdown({ text }: { text: string }) {
     }
   }
   flushList();
+  flushQuote();
   return <div className="text-[13px] text-ink break-words [overflow-wrap:anywhere]">{out}</div>;
 }
 
