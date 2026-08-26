@@ -122,6 +122,12 @@ export function TripWorkspace() {
   useEffect(() => {
     if (mobileTab === "map") window.dispatchEvent(new Event("tm-locate"));
   }, [mobileTab]);
+  // 聊天 @ 提及 / 稽核卡點擊 → 跳回行程頁定位該項目(手機)
+  useEffect(() => {
+    const fn = () => setMobileTab("timeline");
+    window.addEventListener("tm-show-timeline", fn);
+    return () => window.removeEventListener("tm-show-timeline", fn);
+  }, []);
   const [dayDrawerOpen, setDayDrawerOpen] = useState(false);
   const { activeDayId } = useSelection();
   const agentCtx = useChat();
@@ -340,8 +346,14 @@ export function TripWorkspace() {
         </aside>
       </div>
 
-      {/* 手機:地點/交通詳細=行程頁底部抽屜(黑幕點旁關閉;地圖/塔比頁不出現) */}
+      {/* 手機:地點/交通詳細=行程頁底部抽屜(黑幕點旁關閉;塔比頁不出現) */}
       {mobileTab === "timeline" && <MobileDetailDrawer onShowMap={() => setMobileTab("map")} />}
+      {/* 手機:地圖頁點行程地點也出詳情卡 — 無黑幕、不擋地圖操作;地圖鈕=重新定位 */}
+      {mobileTab === "map" && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-[calc(3.8rem+env(safe-area-inset-bottom))] z-30 hidden px-2 max-md:block [&>section]:pointer-events-auto">
+          <DetailHost onShowMap={() => window.dispatchEvent(new Event("tm-locate"))} />
+        </div>
+      )}
 
       {/* lg 以下:聊天抽屜浮動開關(帶 agent 活動脈動) */}
       <ChatFab

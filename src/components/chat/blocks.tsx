@@ -927,6 +927,7 @@ function BookingAuditBlock({
                 if (stop) {
                   setActiveDay(stop.dayId);
                   setSelectedStop(stop.id);
+                  window.dispatchEvent(new Event("tm-show-timeline"));
                 }
               }}
             >

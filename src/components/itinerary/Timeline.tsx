@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Bed, CaretRight, DotsSixVertical, Plus, Warning } from "@phosphor-icons/react";
 
 import { CATEGORY_META, LEG_MODE_ICON } from "@/lib/categories";
@@ -42,6 +42,27 @@ export function Timeline() {
 
   const listRef = useRef<HTMLDivElement>(null);
   const suppressClick = useRef(false);
+  // 選取變更 → 把時間軸上的該項目捲進視野(nearest:已可見就不動);
+  // tm-show-timeline(聊天提及跳轉)→ 行程頁顯示後置中定位
+  const scrollToSelection = (behavior: ScrollBehavior, block: ScrollLogicalPosition) => {
+    const sel = selectedLegId
+      ? `[data-sel-leg="${CSS.escape(selectedLegId)}"]`
+      : selectedStopId
+        ? `[data-sel-stop="${CSS.escape(selectedStopId)}"]`
+        : null;
+    if (!sel) return;
+    listRef.current?.querySelector(sel)?.scrollIntoView({ behavior, block });
+  };
+  useEffect(() => {
+    scrollToSelection("smooth", "nearest");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedStopId, selectedLegId]);
+  useEffect(() => {
+    const fn = () => setTimeout(() => scrollToSelection("auto", "center"), 150);
+    window.addEventListener("tm-show-timeline", fn);
+    return () => window.removeEventListener("tm-show-timeline", fn);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedStopId, selectedLegId, activeDayId]);
   const [dragging, setDragging] = useState<{
     stopId: string;
     fromIndex: number;
@@ -179,6 +200,7 @@ export function Timeline() {
         <div className="flex pl-[1.35rem]">
           <div className="flex min-w-0 flex-1 items-center border-l-2 border-dotted border-line-strong py-0.5 pl-4">
             <button
+              data-sel-leg={selId}
               onClick={() => setSelectedLeg(selectedLegId === selId ? null : selId)}
               className={cn(
                 "tm-focus flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border bg-surface px-3 py-2 text-left text-xs text-ink-soft shadow-card transition-[border-color,box-shadow] hover:border-ocean/40 hover:shadow-lift",
@@ -236,6 +258,7 @@ export function Timeline() {
           <div key={stop.id}>
           <div
             data-stop-wrap
+            data-sel-stop={stop.id}
             style={
               dragging
                 ? isDragging
@@ -363,6 +386,7 @@ export function Timeline() {
                 <div className="flex pl-[1.35rem]">
                   <div className="flex min-w-0 flex-1 items-center border-l-2 border-dotted border-line-strong py-0.5 pl-4">
                     <button
+                      data-sel-leg={stop.id}
                       onClick={() => setSelectedLeg(selectedLegId === stop.id ? null : stop.id)}
                       className={cn(
                         "tm-focus flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border px-3 py-2 text-left text-xs shadow-card transition-[border-color,box-shadow] hover:shadow-lift",

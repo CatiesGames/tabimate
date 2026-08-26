@@ -180,7 +180,10 @@ export function MentionText({
   const jump = (m: ChatMention) => {
     if (!doc) return;
     if (m.kind === "day") {
-      if (doc.days.some((d) => d.id === m.id)) setActiveDay(m.id);
+      if (doc.days.some((d) => d.id === m.id)) {
+        setActiveDay(m.id);
+        window.dispatchEvent(new Event("tm-show-timeline"));
+      }
       return;
     }
     const stop = doc.stops.find((s) => s.id === m.id);
@@ -188,6 +191,8 @@ export function MentionText({
     setActiveDay(stop.dayId);
     if (m.kind === "leg") setSelectedLeg(stop.id);
     else setSelectedStop(stop.id);
+    // 手機在塔比頁點提及 → 跳回行程頁定位該項目(行程頁會捲到並展開詳情)
+    window.dispatchEvent(new Event("tm-show-timeline"));
   };
 
   // 依出現位置切段,@label 段落換成 chip
