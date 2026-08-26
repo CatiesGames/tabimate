@@ -233,6 +233,8 @@ function toolLabel(name: string, input: Record<string, unknown> | null): string 
       return "規劃路線與交通";
     case "mcp__tabimate__present_choices":
       return "提供選項讓大家決定";
+    case "mcp__tabimate__list_memories":
+      return "翻看自己的記憶";
     case "mcp__tabimate__propose_memory":
       return "送出記憶確認卡";
     case "mcp__tabimate__present_transit_options":
