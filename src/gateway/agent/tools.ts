@@ -295,21 +295,58 @@ export function registerCoreTools() {
   });
 
   registerTool({
+    name: "list_memories",
+    description: "列出你目前的個性設定與記憶(含 id)。要修改或忘掉某一條之前先用這個拿 id。",
+    schema: z.object({}),
+    handler: (_args, job) => {
+      const rows = db
+        .query("SELECT id, kind, content FROM agent_memories WHERE trip_id = ? ORDER BY created_at")
+        .all(job.tripId) as Array<{ id: string; kind: string; content: string }>;
+      return { memories: rows };
+    },
+  });
+
+  registerTool({
     name: "propose_memory",
     description:
-      "送出「記憶確認卡」:成員明確要求你記住某件事(偏好/預算/禁忌)或調整你的個性時使用。成員在畫面上按「記住」才會真正寫入,之後每一輪(含對話重置後)你都會帶著這條記憶。平常不要主動提出。",
+      "送出「記憶確認卡」:成員明確要求你記住某件事、調整個性、修改或忘掉既有記憶時使用。成員在畫面上按確認才會真正生效。action=add 新增;update 修改既有(先 list_memories 拿 memoryId);remove 忘掉。平常不要主動提出。",
     schema: z.object({
-      kind: z.enum(["memory", "persona"]).describe("memory=要記住的事;persona=個性/說話方式調整"),
-      content: z.string().min(1).max(300).describe("精煉成一句話"),
+      action: z.enum(["add", "update", "remove"]).default("add"),
+      kind: z
+        .enum(["memory", "persona"])
+        .optional()
+        .describe("add 必填:memory=要記住的事;persona=個性/說話方式"),
+      memoryId: z.string().optional().describe("update/remove 必填(list_memories 取得)"),
+      content: z.string().max(300).optional().describe("add/update 必填,精煉成一句話"),
     }),
     handler: (args, job) => {
-      appendRichBlock(job.tripId, {
-        kind: "memory_proposal",
-        memoryKind: args.kind,
-        content: args.content,
-        status: "pending",
-        resolvedByUserId: null,
-      });
+      if (args.action === "add") {
+        if (!args.kind || !args.content?.trim()) return { error: "add 需要 kind 與 content" };
+        appendRichBlock(job.tripId, {
+          kind: "memory_proposal",
+          action: "add",
+          memoryKind: args.kind,
+          content: args.content.trim(),
+          status: "pending",
+          resolvedByUserId: null,
+        });
+      } else {
+        const row = db
+          .query("SELECT id, kind, content FROM agent_memories WHERE id = ? AND trip_id = ?")
+          .get(args.memoryId ?? "", job.tripId) as { id: string; kind: string; content: string } | null;
+        if (!row) return { error: "找不到這條記憶(先用 list_memories 確認 id)" };
+        if (args.action === "update" && !args.content?.trim()) return { error: "update 需要 content" };
+        appendRichBlock(job.tripId, {
+          kind: "memory_proposal",
+          action: args.action,
+          memoryId: row.id,
+          oldContent: row.content,
+          memoryKind: row.kind as "memory" | "persona",
+          content: args.action === "update" ? args.content!.trim() : row.content,
+          status: "pending",
+          resolvedByUserId: null,
+        });
+      }
       return { ok: true, message: "記憶確認卡已送出,等成員在畫面上確認;結果會在下一輪 [context] 告知。" };
     },
   });

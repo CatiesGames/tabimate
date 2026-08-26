@@ -96,21 +96,44 @@ function MemoryProposalBlock({
     apiFetch(`/api/trips/${location.pathname.split("/")[2]}/chat/resolve-memory`, {
       json: { messageId, idx, accept },
     }).catch(() => {});
-  const label = block.memoryKind === "persona" ? "調整個性" : "記住這件事";
+  const action = block.action ?? "add";
+  const noun = block.memoryKind === "persona" ? "個性" : "記憶";
+  const label =
+    action === "remove"
+      ? `忘掉一條${noun}`
+      : action === "update"
+        ? `更新一條${noun}`
+        : block.memoryKind === "persona"
+          ? "調整個性"
+          : "記住這件事";
   return (
     <div className="overflow-hidden rounded-xl border border-ocean/30 bg-ocean-wash/40">
       <p className="flex items-center gap-1.5 px-3 pt-2.5 text-xs font-medium text-ocean-deep">
         <Brain weight="fill" className="size-3.5" />
         塔比想{label}
       </p>
-      <p className="px-3 py-2 text-[13px] leading-relaxed text-ink">{block.content}</p>
+      {action === "update" && block.oldContent ? (
+        <div className="px-3 py-2 text-[13px] leading-relaxed">
+          <p className="text-ink-faint line-through">{block.oldContent}</p>
+          <p className="text-ink">{block.content}</p>
+        </div>
+      ) : (
+        <p
+          className={cn(
+            "px-3 py-2 text-[13px] leading-relaxed",
+            action === "remove" ? "text-ink-faint line-through" : "text-ink",
+          )}
+        >
+          {block.content}
+        </p>
+      )}
       {block.status === "pending" ? (
         <div className="flex gap-2 px-3 pb-2.5">
           <button
             onClick={() => resolve(true)}
             className="tm-focus rounded-md bg-ocean px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-ocean-deep"
           >
-            記住
+            {action === "remove" ? "忘掉" : action === "update" ? "更新" : "記住"}
           </button>
           <button
             onClick={() => resolve(false)}
@@ -126,7 +149,13 @@ function MemoryProposalBlock({
             block.status === "saved" ? "text-leaf-deep" : "text-ink-faint",
           )}
         >
-          {block.status === "saved" ? "已寫入" : "已婉拒"}
+          {block.status === "saved"
+            ? action === "remove"
+              ? "已忘掉"
+              : action === "update"
+                ? "已更新"
+                : "已寫入"
+            : "已婉拒"}
           {block.resolvedByUserId && ` · ${memberOf(block.resolvedByUserId).name}`}
         </p>
       )}

@@ -209,10 +209,23 @@ export function registerChatRoutes() {
     if (!block || block.kind !== "memory_proposal") throw new HttpError(404, "block_not_found");
     if (block.status !== "pending") return json({ block, alreadyResolved: true });
     if (body.accept) {
-      db.run(
-        "INSERT INTO agent_memories (id, trip_id, kind, content, created_by_user_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?)",
-        [newId(), ctx.params.tripId, block.memoryKind, block.content, user.id, Date.now(), Date.now()],
-      );
+      const action = block.action ?? "add";
+      if (action === "add") {
+        db.run(
+          "INSERT INTO agent_memories (id, trip_id, kind, content, created_by_user_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?)",
+          [newId(), ctx.params.tripId, block.memoryKind, block.content, user.id, Date.now(), Date.now()],
+        );
+      } else if (action === "update" && block.memoryId) {
+        db.run(
+          "UPDATE agent_memories SET content = ?, updated_at = ? WHERE id = ? AND trip_id = ?",
+          [block.content, Date.now(), block.memoryId, ctx.params.tripId],
+        );
+      } else if (action === "remove" && block.memoryId) {
+        db.run("DELETE FROM agent_memories WHERE id = ? AND trip_id = ?", [
+          block.memoryId,
+          ctx.params.tripId,
+        ]);
+      }
     }
     const updated = {
       ...block,
@@ -226,7 +239,12 @@ export function registerChatRoutes() {
       idx: body.idx,
       block: updated,
     });
-    noteMemoryResolution(ctx.params.tripId, user.id, block.content, body.accept);
+    noteMemoryResolution(
+      ctx.params.tripId,
+      user.id,
+      `${block.action === "remove" ? "忘掉:" : block.action === "update" ? "更新為:" : ""}${block.content}`,
+      body.accept,
+    );
     return json({ block: updated });
   });
 

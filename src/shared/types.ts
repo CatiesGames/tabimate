@@ -226,6 +226,11 @@ export type ChatBlock =
   | {
       /** 塔比想記住某事/調整個性:成員按「記住」才寫入。 */
       kind: "memory_proposal";
+      /** add=新增(預設,舊卡無此欄);update=修改既有;remove=忘掉。 */
+      action?: "add" | "update" | "remove";
+      memoryId?: string;
+      /** update 時的原內容(卡上顯示前後對照)。 */
+      oldContent?: string;
       memoryKind: "memory" | "persona";
       content: string;
       status: "pending" | "saved" | "dismissed";
