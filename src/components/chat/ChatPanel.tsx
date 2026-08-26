@@ -657,7 +657,13 @@ function Composer({
       if (at < pos) continue;
       if (at > pos) parts.push(text.slice(pos, at));
       parts.push(
-        <span key={`${m.kind}:${m.id}:${at}`} className="rounded-[3px] bg-ocean-wash text-ocean-deep">
+        <span
+          key={`${m.kind}:${m.id}:${at}`}
+          className={cn(
+            "rounded-[3px] bg-ocean-wash",
+            composing ? "text-transparent" : "text-ocean-deep",
+          )}
+        >
           @{m.label}
         </span>,
       );
@@ -788,8 +794,9 @@ function Composer({
             ref={bdRef}
             aria-hidden
             className={cn(
-              "tm-scroll pointer-events-none absolute inset-0 overflow-hidden rounded-lg border border-transparent px-3 py-1.5 text-[13px] leading-relaxed break-words whitespace-pre-wrap text-ink",
-              composing && "opacity-0",
+              "tm-scroll pointer-events-none absolute inset-0 overflow-hidden rounded-lg border border-transparent px-3 py-1.5 text-[13px] leading-relaxed break-words whitespace-pre-wrap",
+              // 拼字中:文字交給原生層(才有拼字底線),染色層只留提及底色塊
+              composing ? "text-transparent" : "text-ink",
             )}
           >
             {highlightSegments()}
