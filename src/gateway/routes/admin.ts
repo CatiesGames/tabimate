@@ -9,6 +9,8 @@ import {
   destroySession,
   requireAdmin,
 } from "../auth";
+import { unlinkSync } from "node:fs";
+
 import { db, newId, now } from "../db";
 import {
   buildCookie,
@@ -255,5 +257,88 @@ export function registerAdminRoutes() {
     putSettings(body);
     onSettingsChanged();
     return json({ settings: getAllSettings() });
+  });
+
+  // ---- Google 快取管理:統計 + 分類清除(清除後下次取用會重新向 Google 要,按用量計費)----
+  const CACHE_KINDS: Record<
+    string,
+    { label: string; count: () => number; clear: () => number }
+  > = {
+    // 注意:照片與靜態地圖同存 g_photo_cache 且 place_id 都是 NULL,
+    // 只能靠副檔名區分(staticMap 存 .png、placePhoto 存 .jpg)
+    staticmap: {
+      label: "PDF 靜態地圖",
+      count: () =>
+        (db.query("SELECT COUNT(*) c FROM g_photo_cache WHERE path LIKE '%.png'").get() as { c: number }).c,
+      clear: () => clearPhotoRows("path LIKE '%.png'"),
+    },
+    photos: {
+      label: "地點照片",
+      count: () =>
+        (db.query("SELECT COUNT(*) c FROM g_photo_cache WHERE path LIKE '%.jpg'").get() as { c: number }).c,
+      clear: () => clearPhotoRows("path LIKE '%.jpg'"),
+    },
+    places: {
+      label: "地點資料(營業時間等)",
+      count: () => (db.query("SELECT COUNT(*) c FROM g_place_cache").get() as { c: number }).c,
+      clear: () => {
+        const n = (db.query("SELECT COUNT(*) c FROM g_place_cache").get() as { c: number }).c;
+        db.run("DELETE FROM g_place_cache");
+        return n;
+      },
+    },
+    directions: {
+      label: "路線查詢",
+      count: () => (db.query("SELECT COUNT(*) c FROM g_directions_cache").get() as { c: number }).c,
+      clear: () => {
+        const n = (db.query("SELECT COUNT(*) c FROM g_directions_cache").get() as { c: number }).c;
+        db.run("DELETE FROM g_directions_cache");
+        return n;
+      },
+    },
+    autocomplete: {
+      label: "搜尋自動完成",
+      count: () => (db.query("SELECT COUNT(*) c FROM g_autocomplete_cache").get() as { c: number }).c,
+      clear: () => {
+        const n = (db.query("SELECT COUNT(*) c FROM g_autocomplete_cache").get() as { c: number }).c;
+        db.run("DELETE FROM g_autocomplete_cache");
+        return n;
+      },
+    },
+  };
+  /** 刪 g_photo_cache 的列連同磁碟檔案。 */
+  const clearPhotoRows = (where: string): number => {
+    const rows = db.query(`SELECT key, path FROM g_photo_cache WHERE ${where}`).all() as Array<{
+      key: string;
+      path: string;
+    }>;
+    for (const r of rows) {
+      try {
+        unlinkSync(r.path);
+      } catch {
+        // 檔案已不存在就略過
+      }
+    }
+    db.run(`DELETE FROM g_photo_cache WHERE ${where}`);
+    return rows.length;
+  };
+
+  route("GET", "/api/admin/caches", (ctx) => {
+    requireAdmin(ctx);
+    return json({
+      caches: Object.entries(CACHE_KINDS).map(([kind, c]) => ({
+        kind,
+        label: c.label,
+        count: c.count(),
+      })),
+    });
+  });
+
+  route("POST", "/api/admin/caches/clear", async (ctx) => {
+    requireAdmin(ctx);
+    const body = await readJson<{ kind?: string }>(ctx.req);
+    const c = body.kind ? CACHE_KINDS[body.kind] : undefined;
+    if (!c) throw new HttpError(400, "unknown_cache_kind");
+    return json({ cleared: c.clear() });
   });
 }

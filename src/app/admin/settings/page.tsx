@@ -12,7 +12,7 @@ import {
 
 import { apiFetch } from "@/lib/api";
 import { cn } from "@/lib/cn";
-import { Button, Field, Input, SegmentedChips, toast } from "@/components/ui";
+import { Button, ConfirmDialog, Field, Input, SegmentedChips, toast } from "@/components/ui";
 
 type Settings = Record<string, string>;
 
@@ -206,6 +206,8 @@ export default function AdminSettingsPage() {
         </div>
       </Section>
 
+      <CacheStoreSection />
+
       {/* 儲存列 */}
       <div
         className={cn(
@@ -381,5 +383,77 @@ function SecretField({
         </button>
       </div>
     </Field>
+  );
+}
+
+/** 已快取內容管理:分類統計 + 手動清除(路線沒變時想強制重生成 PDF 地圖等就清這裡)。 */
+function CacheStoreSection() {
+  const [caches, setCaches] = useState<Array<{
+    kind: string;
+    label: string;
+    count: number;
+  }> | null>(null);
+  const [clearing, setClearing] = useState<string | null>(null);
+  const [confirmKind, setConfirmKind] = useState<{ kind: string; label: string } | null>(null);
+
+  const load = () =>
+    apiFetch<{ caches: Array<{ kind: string; label: string; count: number }> }>(
+      "/api/admin/caches",
+    ).then((d) => setCaches(d.caches));
+  useEffect(() => {
+    load();
+  }, []);
+
+  const clear = async (kind: string, label: string) => {
+    setClearing(kind);
+    try {
+      const r = await apiFetch<{ cleared: number }>("/api/admin/caches/clear", {
+        json: { kind },
+      });
+      toast(`已清除「${label}」快取 ${r.cleared} 筆,下次使用會重新向 Google 取得`);
+      await load();
+    } finally {
+      setClearing(null);
+    }
+  };
+
+  return (
+    <Section
+      title="已快取的 Google 內容"
+      description="內容沒變時會一直用快取(例如路線沒動,PDF 地圖就不會重新生成)。想強制重新取得就清掉對應分類;清除後的下一次使用會重新呼叫 Google(計入上方月用量)。"
+    >
+      <div className="flex flex-col gap-2">
+        {caches === null && <p className="text-xs text-ink-faint">載入中…</p>}
+        {caches?.map((c) => (
+          <div key={c.kind} className="flex items-center justify-between gap-3 rounded-lg bg-sunken/60 px-3 py-2">
+            <p className="min-w-0 flex-1 text-[13px] text-ink">
+              {c.label}
+              <span className="tm-num ml-2 text-xs text-ink-faint">{c.count} 筆</span>
+            </p>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={c.count === 0}
+              loading={clearing === c.kind}
+              onClick={() => setConfirmKind({ kind: c.kind, label: c.label })}
+            >
+              清除
+            </Button>
+          </div>
+        ))}
+      </div>
+      <ConfirmDialog
+        open={confirmKind !== null}
+        onOpenChange={(o) => !o && setConfirmKind(null)}
+        title={`清除「${confirmKind?.label ?? ""}」快取?`}
+        description="清除後的下一次使用會重新向 Google 取得(照舊計費/計入月上限);內容本身不受影響。"
+        confirmLabel="清除"
+        danger
+        onConfirm={() => {
+          if (confirmKind) clear(confirmKind.kind, confirmKind.label);
+          setConfirmKind(null);
+        }}
+      />
+    </Section>
   );
 }

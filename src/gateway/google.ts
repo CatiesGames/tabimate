@@ -323,10 +323,11 @@ export async function staticMap(
     : "";
   const k = hash(`staticmap|v3|${pts.map((p) => `${p.lat.toFixed(5)},${p.lng.toFixed(5)},${p.n ?? 0}`).join(";")}${lodgePart}`);
   const row = db
-    .query("SELECT path, expires_at FROM g_photo_cache WHERE key = ?")
-    .get(k) as { path: string; expires_at: number } | null;
+    .query("SELECT path, fetched_at, expires_at FROM g_photo_cache WHERE key = ?")
+    .get(k) as { path: string; fetched_at: number; expires_at: number } | null;
+  // etag 帶 fetched_at:後台清快取重抓後(內容 key 相同)瀏覽器也能拿到新圖,不會 304
   if (row && row.expires_at > now() && (await Bun.file(row.path).exists())) {
-    return { path: row.path, cache: "HIT", etag: k };
+    return { path: row.path, cache: "HIT", etag: `${k}-${row.fetched_at}` };
   }
 
   chargeUsage("staticmap");
@@ -363,11 +364,12 @@ export async function staticMap(
   mkdirSync(PHOTO_DIR, { recursive: true });
   const path = join(PHOTO_DIR, `${k}.png`);
   await Bun.write(path, await res.arrayBuffer());
+  const t = now();
   db.run(
     "INSERT OR REPLACE INTO g_photo_cache (key, place_id, path, fetched_at, expires_at) VALUES (?,?,?,?,?)",
-    [k, null, path, now(), now() + ttlMs("cache_ttl_photos_days", "days", 30)],
+    [k, null, path, t, t + ttlMs("cache_ttl_photos_days", "days", 30)],
   );
-  return { path, cache: "MISS", etag: k };
+  return { path, cache: "MISS", etag: `${k}-${t}` };
 }
 
 // ---- Routes API(computeRoutes,含 transit alternatives)----
