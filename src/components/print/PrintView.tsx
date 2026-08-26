@@ -16,6 +16,10 @@ import type { CarryLeg, Day, Itinerary, Leg, Stop } from "@/shared/types";
 type Member = { id: string; name: string; color: string };
 
 export function PrintView({ tripId }: { tripId: string }) {
+  // 地圖 URL 帶開啟時刻:每次開列印頁都繞過瀏覽器 HTTP 快取直達伺服器
+  // (伺服器磁碟快取決定要不要打 Google)。否則後台清快取重生成後,
+  // 瀏覽器還在效期內的舊圖會讓 PDF 一直是舊的。
+  const [openedAt] = useState(() => Date.now());
   const router = useRouter();
   const [doc, setDoc] = useState<Itinerary | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
@@ -180,7 +184,7 @@ export function PrintView({ tripId }: { tripId: string }) {
                       <p className="mb-0.5 text-[10px] font-medium text-ink-faint">{label}</p>
                     )}
                     <img
-                      src={`/api/google/staticmap?day=${day.id}${scope === "main" ? "&scope=main" : ""}`}
+                      src={`/api/google/staticmap?day=${day.id}${scope === "main" ? "&scope=main" : ""}&t=${openedAt}`}
                       alt={`Day ${di + 1} 地圖`}
                       onError={(e) => {
                         (e.currentTarget as HTMLImageElement).style.display = "none";
