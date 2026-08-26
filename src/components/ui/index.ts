@@ -9,3 +9,4 @@ export { Dialog, ConfirmDialog } from "./Dialog";
 export { Switch } from "./Switch";
 export { Hint } from "./Hint";
 export { ImageLightbox, ZoomableImage, type LightboxImage } from "./ImageLightbox";
+export { TruncationTipHost } from "./TruncationTip";

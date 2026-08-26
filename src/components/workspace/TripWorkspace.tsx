@@ -25,7 +25,7 @@ import {
   useSession,
   useTrip,
 } from "@/lib/workspace/WorkspaceProvider";
-import { Avatar, AvatarStack, IconButton, ToastHost } from "@/components/ui";
+import { Avatar, AvatarStack, IconButton, ToastHost, TruncationTipHost } from "@/components/ui";
 import { DayTabs } from "@/components/itinerary/DayTabs";
 import { DayDrawer } from "@/components/itinerary/DayDrawer";
 import { Timeline } from "@/components/itinerary/Timeline";
@@ -113,6 +113,7 @@ export function TripWorkspace() {
   return (
     <div className="fixed inset-0 flex flex-col overflow-hidden bg-bg">
       <ToastHost />
+      <TruncationTipHost />
       <UpdateBanner wsStatus={status} />
 
       {/* 頂欄 */}
