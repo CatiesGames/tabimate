@@ -192,11 +192,21 @@ export function PrintView({ tripId }: { tripId: string }) {
 
             {(() => {
               const carry = carryOverLodging(days, doc.stops, day.id);
-              if (!carry || carry.isCheckoutDay) return null;
+              // 尾列:續住中間天,或入住日先放了行李(住宿不在末位)
+              const checkin = [...stops].reverse().find((st) => st.category === "lodging");
+              const midday =
+                checkin && stops.indexOf(checkin) < stops.length - 1 ? checkin : null;
+              const bottom =
+                carry && !carry.isCheckoutDay
+                  ? carry
+                  : !carry && midday
+                    ? { stop: midday, isCheckoutDay: false }
+                    : null;
+              if (!bottom) return null;
               return (
                 <>
                   {day.lodgingEveningLeg && <CarryLegRow leg={day.lodgingEveningLeg} />}
-                  <CarryRowPrint carry={carry} day={day} edge="bottom" googleReady={googleReady} />
+                  <CarryRowPrint carry={bottom} day={day} edge="bottom" googleReady={googleReady} />
                 </>
               );
             })()}
@@ -326,7 +336,7 @@ function CarryRowPrint({
         : day.lodgingDepartTime;
   const label =
     edge === "bottom"
-      ? "今晚回這裡續住"
+      ? "今晚回這裡住"
       : carry.isCheckoutDay
         ? "昨晚住這,今天退房"
         : "昨晚住這,出發展開今天的行程";

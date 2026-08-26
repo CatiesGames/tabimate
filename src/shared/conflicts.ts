@@ -83,8 +83,13 @@ export function detectTimeConflicts(days: Day[], stops: Stop[]): Set<string> {
         stop.endTime && !overnight ? toMin(stop.endTime) : start,
       );
     }
-    // 中間天設定了「回到住宿」時間:最後一個有時間的行程結束得比它晚 → 衝突
-    if (carry && !carry.isCheckoutDay && day.lodgingReturnTime) {
+    // 「晚上回住宿」的天(續住中間天,或入住日住宿不在末位=先放行李再出門):
+    // 設定了回到時間時,最後一個有時間的行程結束得比它晚 → 衝突
+    const ownLodging = [...ordered].reverse().find((s2) => s2.category === "lodging");
+    const returnsToLodging =
+      (carry && !carry.isCheckoutDay) ||
+      (ownLodging && ordered.indexOf(ownLodging) < ordered.length - 1);
+    if (returnsToLodging && day.lodgingReturnTime) {
       const last = [...ordered].reverse().find((s) => s.startTime);
       if (last) {
         const end =

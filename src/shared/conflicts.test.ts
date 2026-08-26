@@ -145,6 +145,18 @@ describe("住宿跨夜", () => {
     expect(detectTimeConflicts([days[0], ok, days[2]], stops).has("b")).toBe(false);
   });
 
+  test("入住日先放行李(住宿在中間):回到時間晚於最後行程才過", () => {
+    const stops = [
+      stop("a", "d1", 0, "13:00", "14:30"),
+      stop("hotel", "d1", 1, "15:00", "10:00", "lodging"), // 放行李
+      stop("b", "d1", 2, "18:00", "21:30"), // 晚上行程
+    ];
+    const dLate = { ...days[0], lodgingReturnTime: "21:00" };
+    expect(detectTimeConflicts([dLate, days[1], days[2]], stops).has("b")).toBe(true);
+    const dOk = { ...days[0], lodgingReturnTime: "22:00" };
+    expect(detectTimeConflicts([dOk, days[1], days[2]], stops).has("b")).toBe(false);
+  });
+
   test("跨夜住宿的 endTime 不影響當天後續(住宿不在末位)", () => {
     const stops = [
       stop("hotel", "d1", 0, "15:00", "09:00", "lodging"), // 先放行李

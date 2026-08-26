@@ -122,6 +122,10 @@ export function Timeline() {
   // 入住日:住宿在當天末位時固定收尾,「新增地點」移到它上面(新地點插在住宿之前)
   const lastStop = stops[stops.length - 1] ?? null;
   const endsWithLodging = lastStop?.category === "lodging";
+  // 先到飯店放行李、之後還有行程:當天結尾自動出現「今晚回這裡住」錨列
+  const checkinLodging = [...stops].reverse().find((s) => s.category === "lodging") ?? null;
+  const checkinMidday =
+    checkinLodging && stops.indexOf(checkinLodging) < stops.length - 1 ? checkinLodging : null;
 
   return (
     <div ref={listRef} className="flex flex-col">
@@ -329,15 +333,23 @@ export function Timeline() {
         </div>
       )}
 
-      {/* 一天的結尾是回住宿:回住宿列固定在最下面(新增地點之後) */}
-      {carryLodging && !carryLodging.isCheckoutDay && activeDay && (
-        <CarryLodgingRow
-          carry={carryLodging}
-          edge="bottom"
-          day={activeDay}
-          adjacentStop={stops[stops.length - 1] ?? null}
-        />
-      )}
+      {/* 一天的結尾是回住宿:續住中間天,或入住日先放了行李(住宿不在末位) */}
+      {activeDay &&
+        (carryLodging && !carryLodging.isCheckoutDay ? (
+          <CarryLodgingRow
+            carry={carryLodging}
+            edge="bottom"
+            day={activeDay}
+            adjacentStop={stops[stops.length - 1] ?? null}
+          />
+        ) : checkinMidday ? (
+          <CarryLodgingRow
+            carry={{ stop: checkinMidday, isCheckoutDay: false }}
+            edge="bottom"
+            day={activeDay}
+            adjacentStop={stops[stops.length - 1] ?? null}
+          />
+        ) : null)}
     </div>
   );
 }
@@ -361,7 +373,7 @@ function CarryLodgingRow({
   const { editOps } = useTrip();
   const { setSelectedStop } = useSelection();
   const isTop = edge === "top";
-  const label = !isTop ? "今晚回這裡續住" : carry.isCheckoutDay ? "昨晚住這,今天退房" : "昨晚住這";
+  const label = !isTop ? "今晚回這裡住" : carry.isCheckoutDay ? "昨晚住這,今天退房" : "昨晚住這";
   const carryLeg = isTop ? day.lodgingMorningLeg : day.lodgingEveningLeg;
   const legField = isTop ? "lodgingMorningLeg" : "lodgingEveningLeg";
   // 早上離開住宿的時間:中間天存 day.lodgingDepartTime;退房日就是住宿的退房時間

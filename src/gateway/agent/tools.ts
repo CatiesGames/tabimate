@@ -40,7 +40,8 @@ bookingType:none|reservation_required(不訂進不去)|ticket_required(要先買
   - day.lodgingMorningLeg = 住宿→當天第一個行程的交通;day.lodgingEveningLeg = 最後一個行程→住宿的交通。格式:{"mode":"walk|transit|drive|taxi|bike|flight|other","durationMin":15,"departureTime":"10:00","arrivalTime":"10:15","transit":{同 set_leg 的 transit,可含 summary/steps/fare},"notes":""};設 null 清除
   - 全部用 update_day 的 patch 寫入。範例「明天十點離開飯店搭公車去吃早餐」→ update_day 那天 {"lodgingDepartTime":"10:00","lodgingMorningLeg":{"mode":"transit","departureTime":"10:00","arrivalTime":"10:20","durationMin":20,"transit":{"summary":"都營巴士 ..."},"notes":""}}
 - 排程檢查:第一個行程早於離開時間、最後一個行程結束晚於回到時間,都會被列入 timeConflictStopIds。
-- 入住日「最後行程→住宿」是普通 leg(住宿是當天真實 stop,用 set_leg);退房日早上的「住宿→首行程」交通用 lodgingMorningLeg。`;
+- 入住日「最後行程→住宿」是普通 leg(住宿是當天真實 stop,用 set_leg);退房日早上的「住宿→首行程」交通用 lodgingMorningLeg。
+- 入住日「先到飯店放行李再出門」:住宿 stop 放在它實際的時間位置(如 15:00),之後照排晚上行程;只要住宿不在當天末位,畫面結尾會自動出現「今晚回這裡住」錨列,晚上回程時間/交通一樣用 update_day 的 lodgingReturnTime/lodgingEveningLeg。不要為了收尾把住宿硬移到最後。`;
 
 export function registerCoreTools() {
   registerTool({
