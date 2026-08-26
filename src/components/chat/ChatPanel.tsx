@@ -543,6 +543,8 @@ function Composer({
   const [sending, setSending] = useState(false);
   const [trigger, setTrigger] = useState<{ start: number; query: string } | null>(null);
   const [pickIdx, setPickIdx] = useState(0);
+  // IME 拼字中:顯示原生文字(才看得到拼字底線),暫時藏染色層
+  const [composing, setComposing] = useState(false);
   const allCandidates: MentionCandidate[] = doc ? buildCandidates(doc, activeDayId) : [];
   const candidates: MentionCandidate[] = trigger
     ? filterCandidates(allCandidates, trigger.query)
@@ -716,7 +718,10 @@ function Composer({
           <div
             ref={bdRef}
             aria-hidden
-            className="tm-scroll pointer-events-none absolute inset-0 overflow-hidden rounded-lg border border-transparent px-3 py-1.5 text-[13px] leading-relaxed break-words whitespace-pre-wrap text-ink"
+            className={cn(
+              "tm-scroll pointer-events-none absolute inset-0 overflow-hidden rounded-lg border border-transparent px-3 py-1.5 text-[13px] leading-relaxed break-words whitespace-pre-wrap text-ink",
+              composing && "opacity-0",
+            )}
           >
             {highlightSegments()}
             {"\u200b"}
@@ -737,6 +742,8 @@ function Composer({
             detectTrigger(ta.value, ta.selectionStart ?? ta.value.length);
           }}
           onBlur={() => setTimeout(() => setTrigger(null), 120)}
+          onCompositionStart={() => setComposing(true)}
+          onCompositionEnd={() => setComposing(false)}
           onKeyDown={(e) => {
             if (e.nativeEvent.isComposing) return;
             if (trigger && candidates.length > 0) {
@@ -776,7 +783,10 @@ function Composer({
           onScroll={(e) => {
             if (bdRef.current) bdRef.current.scrollTop = e.currentTarget.scrollTop;
           }}
-          className="tm-focus tm-scroll relative min-h-9 w-full resize-none rounded-lg border border-line bg-transparent px-3 py-1.5 text-[13px] leading-relaxed text-transparent caret-ink placeholder:text-ink-faint focus-visible:border-ocean focus-visible:ring-2 focus-visible:ring-ocean/25 focus-visible:outline-none disabled:opacity-50"
+          className={cn(
+            "tm-focus tm-scroll relative min-h-9 w-full resize-none rounded-lg border border-line bg-transparent px-3 py-1.5 text-[13px] leading-relaxed caret-ink placeholder:text-ink-faint focus-visible:border-ocean focus-visible:ring-2 focus-visible:ring-ocean/25 focus-visible:outline-none disabled:opacity-50",
+            composing ? "text-ink" : "text-transparent",
+          )}
         />
         </div>
         {busy ? (
