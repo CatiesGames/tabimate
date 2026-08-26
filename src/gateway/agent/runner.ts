@@ -231,6 +231,10 @@ function toolLabel(name: string, input: Record<string, unknown> | null): string 
       return "查詢地點詳細資訊";
     case "mcp__tabimate__get_directions":
       return "規劃路線與交通";
+    case "mcp__tabimate__present_choices":
+      return "提供選項讓大家決定";
+    case "mcp__tabimate__propose_memory":
+      return "送出記憶確認卡";
     case "mcp__tabimate__present_transit_options":
       return "整理交通選項";
     case "mcp__tabimate__report_verification":
@@ -361,6 +365,27 @@ export function buildPrompt(tripId: string, userMsg: ChatMessage): string {
   return lines.join("\n");
 }
 
+/** 每輪注入的完整系統提示:persona + 後台附加 + 成員確認過的靈魂/記憶。 */
+export function buildAgentSystemPrompt(tripId: string): string {
+  let out = SYSTEM_PROMPT;
+  const extra = getSetting("agent_system_prompt_extra");
+  if (extra) out += `\n\n${extra}`;
+  const rows = db
+    .query(
+      "SELECT kind, content FROM agent_memories WHERE trip_id = ? ORDER BY created_at",
+    )
+    .all(tripId) as Array<{ kind: string; content: string }>;
+  const personas = rows.filter((r) => r.kind === "persona");
+  const memories = rows.filter((r) => r.kind === "memory");
+  if (personas.length > 0) {
+    out += `\n\n# 你的個性設定(成員與你一起定的,持續生效)\n${personas.map((r) => `- ${r.content}`).join("\n")}`;
+  }
+  if (memories.length > 0) {
+    out += `\n\n# 你的記憶(成員確認過的事,對話重置也記得)\n${memories.map((r) => `- ${r.content}`).join("\n")}`;
+  }
+  return out;
+}
+
 const SYSTEM_PROMPT = `你是「塔比」(Tabi),tabimate 的 AI 旅遊嚮導 — 熟門熟路、親切又帶點幽默感,像朋友裡最會安排行程的那一位,陪一群同行成員規劃這趟旅程。你的回覆顯示在所有成員共用的聊天室,每則訊息開頭的 [context] 會標明是誰在跟你說話。
 
 # 語氣與個性
@@ -383,6 +408,7 @@ const SYSTEM_PROMPT = `你是「塔比」(Tabi),tabimate 的 AI 旅遊嚮導 —
 
 # 平台操作(你在 tabimate 裡工作)
 成員的畫面是「天數分頁 + 每日時間軸 + 地圖 + 這個聊天室」,你的每個動作他們都即時看得到。
+- 記憶:成員明確要你「記住某件事」或「調整你的個性/說話方式」時,用 mcp__tabimate__propose_memory 送出記憶確認卡,成員按下確認才會真正寫入(之後每輪對話你都會帶著它,重置對話也不忘)。**平常不要主動提出記憶請求**;內容精煉成一句話。
 - 讀行程:任何操作前先 mcp__tabimate__get_itinerary(拿最新狀態與正確 id);get_trip_info 拿成員名單與日期。
 - 改行程:唯一途徑是 mcp__tabimate__propose_changes(提案制)。提案送出後立即返回,任一成員會在畫面上確認或拒絕,結果在你下一輪的 [context] 告知。絕不宣稱「已經加入/改好了」,要說「提案已送出,請在畫面上確認」。
 - 行程會在你不在場時被改動:成員可直接編輯,也可能把整個行程回滾到較早版本。[context] 開頭會列出上次對話後的所有更動;看到【版本回滾】就把記憶中的行程狀態視為作廢,先 get_itinerary 再行動。
@@ -514,10 +540,7 @@ async function runJob(job: { id: string; trip_id: string; chat_message_id: strin
       }),
       "--strict-mcp-config",
       "--append-system-prompt",
-      SYSTEM_PROMPT +
-        (getSetting("agent_system_prompt_extra")
-          ? `\n\n${getSetting("agent_system_prompt_extra")}`
-          : ""),
+      buildAgentSystemPrompt(tripId),
       "--autocompact",
       "auto",
       "--max-turns",
@@ -865,6 +888,21 @@ export function initRunner() {
   });
 
   queueMicrotask(pump);
+}
+
+/** 記憶確認卡被處理後,由 route 呼叫寫回饋。 */
+export function noteMemoryResolution(
+  tripId: string,
+  byUserId: string,
+  content: string,
+  saved: boolean,
+) {
+  addFeedback(
+    tripId,
+    saved
+      ? `${userName(byUserId)} 確認了你的記憶請求,已寫入:「${content}」`
+      : `${userName(byUserId)} 婉拒了你的記憶請求:「${content}」(不要再重複提出)`,
+  );
 }
 
 /** 交通選項選擇後,由 route 呼叫寫回饋。 */

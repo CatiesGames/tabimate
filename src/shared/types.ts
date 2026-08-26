@@ -224,6 +224,14 @@ export type ChatBlock =
       items: BookingAuditItem[];
     }
   | {
+      /** 塔比想記住某事/調整個性:成員按「記住」才寫入。 */
+      kind: "memory_proposal";
+      memoryKind: "memory" | "persona";
+      content: string;
+      status: "pending" | "saved" | "dismissed";
+      resolvedByUserId: string | null;
+    }
+  | {
       kind: "choices";
       blockId: string;
       question: string;
@@ -272,6 +280,17 @@ export type ChatMention = {
   id: string;
   /** 輸入框顯示的文字(不含 @) */
   label: string;
+};
+
+/** 塔比的靈魂(persona)與記憶(memory):成員確認後注入每輪 system prompt。 */
+export type AgentMemory = {
+  id: string;
+  tripId: string;
+  kind: "memory" | "persona";
+  content: string;
+  createdByUserId: string | null;
+  createdAt: number;
+  updatedAt: number;
 };
 
 export type ChatMessage = {

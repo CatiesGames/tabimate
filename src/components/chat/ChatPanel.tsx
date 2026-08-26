@@ -21,6 +21,7 @@ import { cn } from "@/lib/cn";
 import { chatDateLabel, clockLabel } from "@/lib/dates";
 import type { ChatMention, ChatMessage } from "@/shared/types";
 import { useChat, useSelection, useSession, useTrip } from "@/lib/workspace/WorkspaceProvider";
+import { TabiSoulDialog } from "./TabiSoul";
 import { Avatar, ConfirmDialog, Hint, PulseDots, Spinner, Tag, ZoomableImage } from "@/components/ui";
 import { BlockRenderer, maskUnfinishedImage, MiniMarkdown, ToolStatusBlock } from "./blocks";
 import {
@@ -100,12 +101,18 @@ function ChatHeader() {
   const { store } = useChat();
   const { tripId, memberOf } = useSession();
   const [confirmReset, setConfirmReset] = useState(false);
+  const [soulOpen, setSoulOpen] = useState(false);
   useSyncExternalStore(store.subscribeStream, store.streamVersion, store.streamVersion);
   const phase = store.agentPhase;
 
   return (
     <header className="flex items-center gap-2.5 border-b border-line px-3 py-2.5">
-      <span className="relative flex size-9 items-center justify-center rounded-full bg-ocean text-white">
+      <button
+        aria-label="塔比的靈魂與記憶"
+        onClick={() => setSoulOpen(true)}
+        title="查看塔比的靈魂與記憶"
+        className="tm-focus relative flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-ocean text-white transition-transform hover:scale-105 active:scale-95"
+      >
         <Robot weight="fill" className="size-5" />
         <span
           className={cn(
@@ -113,7 +120,7 @@ function ChatHeader() {
             phase === "idle" ? "bg-leaf" : "bg-sun animate-pulse",
           )}
         />
-      </span>
+      </button>
       <div className="min-w-0 flex-1">
         <p className="font-display text-sm font-semibold text-ink">塔比 <span className="text-[11px] font-normal text-ink-faint">AI 旅遊嚮導</span></p>
         <p className="flex items-center gap-1.5 text-[11px] text-ink-soft">
@@ -153,6 +160,7 @@ function ChatHeader() {
           <ArrowCounterClockwise className="size-4" />
         </button>
       </Hint>
+      <TabiSoulDialog open={soulOpen} onClose={() => setSoulOpen(false)} />
       <ConfirmDialog
         open={confirmReset}
         onOpenChange={setConfirmReset}

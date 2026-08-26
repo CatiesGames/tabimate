@@ -9,6 +9,7 @@ import {
   enqueueChat,
   getAgentState,
   noteTransitSelection,
+  noteMemoryResolution,
   noteUserChoice,
   resetSession,
   stopActive,
@@ -194,6 +195,100 @@ export function registerChatRoutes() {
     });
     noteUserChoice(ctx.params.tripId, user.id, block.question, option.label, !!option.operations?.length);
     return json({ block: updated });
+  });
+
+  // ---- 塔比記憶:確認卡 resolve + 手動 CRUD ----
+
+  route("POST", "/api/trips/:tripId/chat/resolve-memory", async (ctx) => {
+    const user = requireTripUser(ctx, ctx.params.tripId);
+    const body = await readJson<{ messageId: string; idx: number; accept: boolean }>(ctx.req);
+    const msg = getMessage(body.messageId);
+    if (!msg || msg.tripId !== ctx.params.tripId) throw new HttpError(404, "message_not_found");
+    const blocks = getBlocks(body.messageId);
+    const block = blocks[body.idx];
+    if (!block || block.kind !== "memory_proposal") throw new HttpError(404, "block_not_found");
+    if (block.status !== "pending") return json({ block, alreadyResolved: true });
+    if (body.accept) {
+      db.run(
+        "INSERT INTO agent_memories (id, trip_id, kind, content, created_by_user_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?)",
+        [newId(), ctx.params.tripId, block.memoryKind, block.content, user.id, Date.now(), Date.now()],
+      );
+    }
+    const updated = {
+      ...block,
+      status: body.accept ? ("saved" as const) : ("dismissed" as const),
+      resolvedByUserId: user.id,
+    };
+    updateBlock(body.messageId, body.idx, updated);
+    publish(ctx.params.tripId, {
+      type: "chat_block",
+      messageId: body.messageId,
+      idx: body.idx,
+      block: updated,
+    });
+    noteMemoryResolution(ctx.params.tripId, user.id, block.content, body.accept);
+    return json({ block: updated });
+  });
+
+  route("GET", "/api/trips/:tripId/agent/memories", (ctx) => {
+    requireTripUser(ctx, ctx.params.tripId);
+    const rows = db
+      .query(
+        "SELECT id, trip_id, kind, content, created_by_user_id, created_at, updated_at FROM agent_memories WHERE trip_id = ? ORDER BY created_at",
+      )
+      .all(ctx.params.tripId) as Array<Record<string, unknown>>;
+    return json({
+      memories: rows.map((r) => ({
+        id: r.id,
+        tripId: r.trip_id,
+        kind: r.kind,
+        content: r.content,
+        createdByUserId: r.created_by_user_id,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+      })),
+    });
+  });
+
+  route("POST", "/api/trips/:tripId/agent/memories", async (ctx) => {
+    const user = requireTripUser(ctx, ctx.params.tripId);
+    const body = await readJson<{ kind?: string; content?: string }>(ctx.req);
+    const kind = body.kind === "persona" ? "persona" : "memory";
+    const content = (body.content ?? "").trim().slice(0, 300);
+    if (!content) throw new HttpError(400, "empty_content");
+    const id = newId();
+    db.run(
+      "INSERT INTO agent_memories (id, trip_id, kind, content, created_by_user_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?)",
+      [id, ctx.params.tripId, kind, content, user.id, Date.now(), Date.now()],
+    );
+    return json({ ok: true, id });
+  });
+
+  route("PATCH", "/api/agent/memories/:id", async (ctx) => {
+    const { user } = requireUser(ctx);
+    const row = db.query("SELECT trip_id FROM agent_memories WHERE id = ?").get(ctx.params.id) as
+      | { trip_id: string }
+      | null;
+    if (!row || row.trip_id !== user.trip_id) throw new HttpError(404, "not_found");
+    const body = await readJson<{ content?: string }>(ctx.req);
+    const content = (body.content ?? "").trim().slice(0, 300);
+    if (!content) throw new HttpError(400, "empty_content");
+    db.run("UPDATE agent_memories SET content = ?, updated_at = ? WHERE id = ?", [
+      content,
+      Date.now(),
+      ctx.params.id,
+    ]);
+    return json({ ok: true });
+  });
+
+  route("DELETE", "/api/agent/memories/:id", (ctx) => {
+    const { user } = requireUser(ctx);
+    const row = db.query("SELECT trip_id FROM agent_memories WHERE id = ?").get(ctx.params.id) as
+      | { trip_id: string }
+      | null;
+    if (!row || row.trip_id !== user.trip_id) throw new HttpError(404, "not_found");
+    db.run("DELETE FROM agent_memories WHERE id = ?", [ctx.params.id]);
+    return json({ ok: true });
   });
 
   // ---- 附件 ----

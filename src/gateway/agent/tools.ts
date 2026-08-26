@@ -295,6 +295,26 @@ export function registerCoreTools() {
   });
 
   registerTool({
+    name: "propose_memory",
+    description:
+      "送出「記憶確認卡」:成員明確要求你記住某件事(偏好/預算/禁忌)或調整你的個性時使用。成員在畫面上按「記住」才會真正寫入,之後每一輪(含對話重置後)你都會帶著這條記憶。平常不要主動提出。",
+    schema: z.object({
+      kind: z.enum(["memory", "persona"]).describe("memory=要記住的事;persona=個性/說話方式調整"),
+      content: z.string().min(1).max(300).describe("精煉成一句話"),
+    }),
+    handler: (args, job) => {
+      appendRichBlock(job.tripId, {
+        kind: "memory_proposal",
+        memoryKind: args.kind,
+        content: args.content,
+        status: "pending",
+        resolvedByUserId: null,
+      });
+      return { ok: true, message: "記憶確認卡已送出,等成員在畫面上確認;結果會在下一輪 [context] 告知。" };
+    },
+  });
+
+  registerTool({
     name: "present_booking_audit",
     description:
       "以預約稽核卡片呈現整趟行程需要預約/購票的項目清單(哪些沒訂會撲空、截止日、訂票連結、目前狀態)。適用:成員問「有哪些要先預約」時,先逐點查證再用這個工具總結呈現。要更新某地點的預約標記請另外用 propose_changes 的 update_stop。",

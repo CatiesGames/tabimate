@@ -257,6 +257,18 @@ const MIGRATIONS: string[] = [
   `
   ALTER TABLE stops ADD COLUMN exclude_from_fit INTEGER NOT NULL DEFAULT 0;
   `,
+  // v13 — 塔比的靈魂與記憶(成員確認後才寫入;注入每輪 system prompt,重置對話不忘)
+  `
+  CREATE TABLE agent_memories (
+    id TEXT PRIMARY KEY,
+    trip_id TEXT NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK(kind IN ('memory','persona')),
+    content TEXT NOT NULL,
+    created_by_user_id TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+  `,
 ];
 
 export function migrate(db: Database) {

@@ -2,8 +2,7 @@
 
 // agent 訊息的 block 渲染器:結構化卡片,不是裸 markdown。
 import { useEffect, useState } from "react";
-import {
-  ArrowSquareOut,
+import { Brain, ArrowSquareOut,
   CalendarCheck,
   Check,
   CheckCircle,
@@ -12,8 +11,7 @@ import {
   SealCheck,
   Ticket,
   Warning,
-  X,
-} from "@phosphor-icons/react";
+  X } from "@phosphor-icons/react";
 
 import { apiFetch } from "@/lib/api";
 import { LEG_MODE_ICON } from "@/lib/categories";
@@ -44,6 +42,8 @@ export function BlockRenderer({
       return <ToolStatusBlock block={block} />;
     case "transit_options":
       return <TransitOptionsBlock block={block} messageId={messageId} idx={idx} />;
+    case "memory_proposal":
+      return <MemoryProposalBlock block={block} messageId={messageId} idx={idx} />;
     case "choices":
       return <ChoicesBlock block={block} messageId={messageId} idx={idx} />;
     case "proposal":
@@ -78,6 +78,60 @@ export function maskUnfinishedImage(text: string): string {
   if (at === -1) return text;
   if (/^!\[[^\]]*\]\([^)]*\)/.test(text.slice(at))) return text; // 已閉合,照常渲染
   return `${text.slice(0, at)}(附圖…)`;
+}
+
+// ---- 記憶確認卡:塔比想記住某事/調整個性,成員按「記住」才寫入 ----
+
+function MemoryProposalBlock({
+  block,
+  messageId,
+  idx,
+}: {
+  block: Extract<ChatBlock, { kind: "memory_proposal" }>;
+  messageId: string;
+  idx: number;
+}) {
+  const { memberOf } = useSession();
+  const resolve = (accept: boolean) =>
+    apiFetch(`/api/trips/${location.pathname.split("/")[2]}/chat/resolve-memory`, {
+      json: { messageId, idx, accept },
+    }).catch(() => {});
+  const label = block.memoryKind === "persona" ? "調整個性" : "記住這件事";
+  return (
+    <div className="overflow-hidden rounded-xl border border-ocean/30 bg-ocean-wash/40">
+      <p className="flex items-center gap-1.5 px-3 pt-2.5 text-xs font-medium text-ocean-deep">
+        <Brain weight="fill" className="size-3.5" />
+        塔比想{label}
+      </p>
+      <p className="px-3 py-2 text-[13px] leading-relaxed text-ink">{block.content}</p>
+      {block.status === "pending" ? (
+        <div className="flex gap-2 px-3 pb-2.5">
+          <button
+            onClick={() => resolve(true)}
+            className="tm-focus rounded-md bg-ocean px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-ocean-deep"
+          >
+            記住
+          </button>
+          <button
+            onClick={() => resolve(false)}
+            className="tm-focus rounded-md px-3 py-1.5 text-xs text-ink-soft transition-colors hover:bg-sunken"
+          >
+            先不要
+          </button>
+        </div>
+      ) : (
+        <p
+          className={cn(
+            "border-t border-ocean/20 px-3 py-1.5 text-xs",
+            block.status === "saved" ? "text-leaf-deep" : "text-ink-faint",
+          )}
+        >
+          {block.status === "saved" ? "已寫入" : "已婉拒"}
+          {block.resolvedByUserId && ` · ${memberOf(block.resolvedByUserId).name}`}
+        </p>
+      )}
+    </div>
+  );
 }
 
 // ---- 迷你 markdown(粗體/代碼/連結/圖片/清單/標題)----
@@ -173,8 +227,52 @@ export function MiniMarkdown({ text }: { text: string }) {
     listBuf = [];
   };
 
-  for (const line of lines) {
+  const isTableRow = (t: string) => t.startsWith("|") && t.endsWith("|") && t.length > 2;
+  const isDivider = (t: string) => /^\|[\s:|-]+\|$/.test(t) && t.includes("-");
+  for (let li = 0; li < lines.length; li++) {
+    const line = lines[li];
     const t = line.trim();
+    // markdown 表格:| 標題 | … | 且下一行是 |---|---|
+    if (isTableRow(t) && isDivider((lines[li + 1] ?? "").trim())) {
+      flushList();
+      const parseRow = (row: string) =>
+        row.trim().slice(1, -1).split("|").map((c) => c.trim());
+      const header = parseRow(t);
+      const rows: string[][] = [];
+      let j = li + 2;
+      while (j < lines.length && isTableRow(lines[j].trim()) && !isDivider(lines[j].trim())) {
+        rows.push(parseRow(lines[j].trim()));
+        j++;
+      }
+      out.push(
+        <div key={`tb${key++}`} className="tm-noscrollbar my-1.5 overflow-x-auto rounded-lg border border-line">
+          <table className="w-full text-[12.5px]">
+            <thead>
+              <tr className="bg-sunken/70">
+                {header.map((h, i) => (
+                  <th key={i} className="px-2.5 py-1.5 text-left font-semibold whitespace-nowrap text-ink">
+                    {inline(h, `th${key}-${i}`)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, ri) => (
+                <tr key={ri} className="border-t border-line">
+                  {r.map((c, ci) => (
+                    <td key={ci} className="px-2.5 py-1.5 align-top text-ink-soft">
+                      {inline(c, `td${key}-${ri}-${ci}`)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>,
+      );
+      li = j - 1;
+      continue;
+    }
     if (/^[-*] /.test(t)) {
       listBuf.push(t.slice(2));
       continue;
