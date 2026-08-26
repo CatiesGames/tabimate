@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ArrowUUpLeft, X } from "@phosphor-icons/react";
+import { Robot, ArrowUUpLeft, X } from "@phosphor-icons/react";
 
 import { apiFetch } from "@/lib/api";
 import { cn } from "@/lib/cn";
@@ -85,7 +85,17 @@ export function VersionsPanel({ open, onClose }: { open: boolean; onClose: () =>
                 )}
               >
                 <div className="flex items-center gap-2">
-                  <Avatar user={actor} size="xs" />
+                  <span className="relative shrink-0">
+                    <Avatar user={actor} size="xs" />
+                    {v.agentInvolved && (
+                      <span
+                        className="absolute -right-1 -bottom-1 flex size-3.5 items-center justify-center rounded-full bg-ocean text-white ring-2 ring-surface"
+                        title="塔比參與"
+                      >
+                        <Robot weight="fill" className="size-2" />
+                      </span>
+                    )}
+                  </span>
                   <span className="min-w-0 flex-1 truncate text-[13px] text-ink">
                     {v.summary}
                   </span>
@@ -93,9 +103,14 @@ export function VersionsPanel({ open, onClose }: { open: boolean; onClose: () =>
                 </div>
                 <div className="mt-1.5 flex items-center justify-between pl-7">
                   <p className="text-[11px] text-ink-faint">
-                    v{v.rev} · {actor.name}
-                    {v.agentInvolved && " · AI 參與"}
-                    {v.changeKind === "rollback" && " · 還原"}
+                    v{v.rev} ·{" "}
+                    {v.changeKind === "rollback"
+                      ? `${actor.name} 還原版本`
+                      : v.agentInvolved
+                        ? v.changeKind === "proposal_apply"
+                          ? `塔比提案 · ${actor.name} 確認`
+                          : `${actor.name} 透過塔比`
+                        : `${actor.name} 手動編輯`}
                     {" · "}
                     <span className="tm-num" title={clockLabel(v.createdAt)}>
                       {timeAgo(v.createdAt)}
