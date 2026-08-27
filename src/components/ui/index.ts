@@ -5,7 +5,7 @@ export { SegmentedChips, type ChipOption } from "./SegmentedChips";
 export { Spinner, PulseDots, Skeleton } from "./Loaders";
 export { Tag } from "./Tag";
 export { toast, ToastHost } from "./toast";
-export { DateField } from "./DateField";
+export { DateField, DateRangeField } from "./DateField";
 export { Dialog, ConfirmDialog } from "./Dialog";
 export { Switch } from "./Switch";
 export { Hint } from "./Hint";

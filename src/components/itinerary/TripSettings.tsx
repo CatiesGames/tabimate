@@ -9,7 +9,7 @@ import { Minus, Plus, Warning } from "@phosphor-icons/react";
 import { addDaysISO, diffDaysISO } from "@/lib/dates";
 import type { Operation } from "@/shared/changeset";
 import { useTrip } from "@/lib/workspace/WorkspaceProvider";
-import { Button, DateField, Dialog, Field, Input } from "@/components/ui";
+import { Button, DateRangeField, Dialog, Field, Input } from "@/components/ui";
 
 const MAX_DAYS = 60;
 
@@ -87,26 +87,17 @@ export function TripSettingsDialog({
             placeholder="(未設定)"
           />
         </Field>
-        <div className="flex flex-wrap items-end gap-3">
-          <Field label="出發日">
-            <DateField value={startDate} onChange={setStartDate} clearable />
-          </Field>
-          <Field label="最後一天">
-            {startDate ? (
-              <DateField
-                value={endDate}
-                min={startDate}
-                onChange={(v) => {
-                  if (v) setDayCount(Math.min(MAX_DAYS, diffDaysISO(startDate, v) + 1));
-                }}
-              />
-            ) : (
-              <span className="flex h-9 items-center text-[13px] text-ink-faint">
-                設定出發日後自動換算
-              </span>
-            )}
-          </Field>
-        </div>
+        <Field label="旅遊日期" hint="同一個月曆點兩下:第一下出發日、第二下最後一天">
+          <DateRangeField
+            start={startDate}
+            end={endDate}
+            onChange={(s, e) => {
+              setStartDate(s);
+              if (s && e) setDayCount(Math.min(MAX_DAYS, diffDaysISO(s, e) + 1));
+            }}
+            clearable
+          />
+        </Field>
         <Field label="天數">
           <div className="flex items-center gap-2">
             <button

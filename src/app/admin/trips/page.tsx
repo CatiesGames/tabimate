@@ -16,7 +16,7 @@ import { apiFetch } from "@/lib/api";
 import { diffDaysISO } from "@/lib/dates";
 import { cn } from "@/lib/cn";
 import { AVATAR_COLORS } from "@/shared/config";
-import { DateField,
+import { DateField, DateRangeField,
   Avatar,
   Button,
   ConfirmDialog,
@@ -331,42 +331,35 @@ function TripFormDialog({
           <Field label="目的地">
             <Input value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="東京" />
           </Field>
-          <Field label="出發日期">
-            <DateField
-              value={startDate || null}
-              onChange={(v) => {
-                setStartDate(v ?? "");
-                if (!v) setEndDate("");
-                else if (endDate && endDate < v) setEndDate(v);
-              }}
-              clearable
-            />
-          </Field>
-        </div>
-        {!trip && (
-          <Field
-            label="最後一天"
-            hint={
-              startDate && endDate
-                ? `共 ${diffDaysISO(startDate, endDate) + 1} 天(建立後也能在工作區的旅遊設定調整)`
-                : "選了出發日再選;不選=先建 1 天"
-            }
-          >
-            {startDate ? (
+          {trip ? (
+            <Field label="出發日期">
               <DateField
-                value={endDate || null}
-                min={startDate}
-                onChange={(v) => setEndDate(v ?? "")}
-                placeholder="選最後一天"
+                value={startDate || null}
+                onChange={(v) => setStartDate(v ?? "")}
                 clearable
               />
-            ) : (
-              <span className="flex h-9 items-center text-[13px] text-ink-faint">
-                先選出發日期
-              </span>
-            )}
-          </Field>
-        )}
+            </Field>
+          ) : (
+            <Field
+              label="旅遊日期"
+              hint={
+                startDate && endDate
+                  ? `共 ${diffDaysISO(startDate, endDate) + 1} 天(建立後也能在旅遊設定調整)`
+                  : "點兩下選起訖;不選=先建 1 天"
+              }
+            >
+              <DateRangeField
+                start={startDate || null}
+                end={endDate || null}
+                onChange={(st, en) => {
+                  setStartDate(st ?? "");
+                  setEndDate(en ?? "");
+                }}
+                clearable
+              />
+            </Field>
+          )}
+        </div>
         {trip && (
           <>
             <div className="flex items-center gap-3">
