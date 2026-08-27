@@ -6,11 +6,13 @@ import { cn } from "@/lib/cn";
 import type { BookingStatus, BookingType } from "@/shared/config";
 import { dayDateLabel } from "@/lib/dates";
 import { useSelection, useTrip } from "@/lib/workspace/WorkspaceProvider";
+import { useAgentName } from "@/components/chat/AgentFace";
 import { BookingBadge, bookingWords } from "@/components/itinerary/badges";
 import { SegmentedChips } from "@/components/ui";
 
 /** 跨天預約總覽 checklist:按截止日排序,一眼看到還有什麼沒訂。 */
 export function BookingOverview({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const boAgentName = useAgentName();
   const { doc, editOps } = useTrip();
   const { setActiveDay, setSelectedStop } = useSelection();
 
@@ -96,7 +98,7 @@ export function BookingOverview({ open, onClose }: { open: boolean; onClose: () 
           <p className="px-4 py-10 text-center text-[13px] text-ink-faint">
             目前沒有需要預約或購票的項目。
             <br />
-            可以問塔比:「有哪些行程必須先預約?」
+            可以問{boAgentName}:「有哪些行程必須先預約?」
           </p>
         ) : (
           <ul className="flex flex-col gap-1.5 p-3">

@@ -13,7 +13,13 @@ const SIZE = {
   xl: "size-16 text-2xl",
 } as const;
 
-export type AvatarUser = { id: string; name: string; color: string };
+export type AvatarUser = {
+  id: string;
+  name: string;
+  color: string;
+  /** 有值就顯示圖片頭貼(塔比變身後的自訂頭貼);裁切焦點偏上保住臉。 */
+  avatarUrl?: string | null;
+};
 
 /** 彩色圓盤 + 名字首字。agent 偽成員顯示機器人 icon(海洋青)。 */
 export function Avatar({
@@ -38,7 +44,13 @@ export function Avatar({
       style={{ backgroundColor: isAgent ? "var(--tm-ocean)" : user.color }}
       title={user.name}
     >
-      {isAgent ? (
+      {user.avatarUrl ? (
+        <img
+          src={user.avatarUrl}
+          alt={user.name}
+          className="size-full rounded-full object-cover object-[50%_25%]"
+        />
+      ) : isAgent ? (
         <Robot weight="fill" className="size-[60%]" />
       ) : (
         [...user.name][0]

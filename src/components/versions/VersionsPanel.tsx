@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Robot, ArrowUUpLeft, X } from "@phosphor-icons/react";
+import { ArrowUUpLeft, X } from "@phosphor-icons/react";
+
+import { AgentFace, useAgentName } from "@/components/chat/AgentFace";
 
 import { apiFetch } from "@/lib/api";
 import { cn } from "@/lib/cn";
@@ -12,6 +14,7 @@ import { Avatar, ConfirmDialog, Skeleton, Tag, toast } from "@/components/ui";
 
 export function VersionsPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { tripId, memberOf } = useSession();
+  const vAgentName = useAgentName();
   const { doc } = useTrip();
   useRealtime();
   const [versions, setVersions] = useState<VersionMeta[] | null>(null);
@@ -89,10 +92,10 @@ export function VersionsPanel({ open, onClose }: { open: boolean; onClose: () =>
                     <Avatar user={actor} size="xs" />
                     {v.agentInvolved && (
                       <span
-                        className="absolute -right-1 -bottom-1 flex size-3.5 items-center justify-center rounded-full bg-ocean text-white ring-2 ring-surface"
-                        title="塔比參與"
+                        className="absolute -right-1 -bottom-1 flex size-3.5 items-center justify-center overflow-hidden rounded-full ring-2 ring-surface"
+                        title={`${vAgentName}參與`}
                       >
-                        <Robot weight="fill" className="size-2" />
+                        <AgentFace className="flex size-3.5 items-center justify-center rounded-full" iconClassName="size-2" />
                       </span>
                     )}
                   </span>
@@ -108,8 +111,8 @@ export function VersionsPanel({ open, onClose }: { open: boolean; onClose: () =>
                       ? `${actor.name} 還原版本`
                       : v.agentInvolved
                         ? v.changeKind === "proposal_apply"
-                          ? `塔比提案 · ${actor.name} 確認`
-                          : `${actor.name} 透過塔比`
+                          ? `${vAgentName}提案 · ${actor.name} 確認`
+                          : `${actor.name} 透過${vAgentName}`
                         : `${actor.name} 手動編輯`}
                     {" · "}
                     <span className="tm-num" title={clockLabel(v.createdAt)}>

@@ -29,7 +29,7 @@ import { RtConnection, type RtEvent, type RtStatus } from "@/lib/realtime/connec
 import { toast } from "@/components/ui";
 import { ChatStore } from "./chatStore";
 
-export type Member = { id: string; name: string; color: string };
+export type Member = { id: string; name: string; color: string; avatarUrl?: string | null };
 
 export type PresenceRow = {
   userId: string;
@@ -146,17 +146,32 @@ export function WorkspaceProvider({
   membersRef.current = members;
   const meRef = useRef<PublicUser | null>(null);
   meRef.current = me;
+  const agentRef = useRef<AgentInfo>(null as never);
+  agentRef.current = agent;
 
-  const memberOf = useCallback((id: string | null): Member => {
-    if (id === AGENT_USER_ID) return AGENT_MEMBER;
-    return (
-      membersRef.current.find((m) => m.id === id) ?? {
-        id: id ?? "?",
-        name: "成員",
-        color: "#8A8578",
+  const memberOf = useCallback(
+    (id: string | null): Member => {
+      // 塔比偽成員跟著變身走:名稱/頭貼動態取自目前 identity
+      if (id === AGENT_USER_ID) {
+        const identity = agentRef.current.identity;
+        return {
+          ...AGENT_MEMBER,
+          name: identity.name || AGENT_MEMBER.name,
+          avatarUrl: identity.avatarVersion
+            ? `/api/trips/${tripId}/agent/avatar?v=${identity.avatarVersion}`
+            : null,
+        };
       }
-    );
-  }, []);
+      return (
+        membersRef.current.find((m) => m.id === id) ?? {
+          id: id ?? "?",
+          name: "成員",
+          color: "#8A8578",
+        }
+      );
+    },
+    [tripId],
+  );
 
   const refetch = useCallback(async () => {
     const data = await apiFetch<Itinerary>(`/api/trips/${tripId}/itinerary`);
@@ -269,14 +284,15 @@ export function WorkspaceProvider({
           const actor = e.actor as { userId: string | null; viaAgent: boolean };
           const isSelf = actor.userId === meRef.current?.id && !actor.viaAgent;
           if (!isSelf) {
+            const agentName = memberOf(AGENT_USER_ID).name;
             const who = actor.viaAgent
               ? actor.userId
-                ? `塔比(${memberOf(actor.userId).name} 發起)`
-                : "塔比"
+                ? `${agentName}(${memberOf(actor.userId).name} 發起)`
+                : agentName
               : memberOf(actor.userId).name;
             toast(`${who} ${e.summary as string}`, {
               actor: actor.viaAgent
-                ? { ...AGENT_MEMBER }
+                ? memberOf(AGENT_USER_ID)
                 : memberOf(actor.userId),
             });
           }

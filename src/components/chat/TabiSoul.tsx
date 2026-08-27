@@ -3,11 +3,11 @@
 // 塔比的靈魂與記憶:點聊天室塔比頭貼開啟。
 // 這裡的每一條都會注入塔比每一輪的系統提示(重置對話也不忘);可手動新增/編輯/刪除。
 import { useEffect, useState } from "react";
-import { Brain, PencilSimple, Plus, Robot, Sparkle, Trash, X } from "@phosphor-icons/react";
+import { Brain, PencilSimple, Plus, Sparkle, Trash, X } from "@phosphor-icons/react";
 
 import { apiFetch } from "@/lib/api";
 import { cn } from "@/lib/cn";
-import { AgentFace } from "./AgentFace";
+import { AgentFace, useAgentName } from "./AgentFace";
 import { useChat, useSession } from "@/lib/workspace/WorkspaceProvider";
 import type { AgentMemory } from "@/shared/types";
 import { Button, Input, Spinner } from "@/components/ui";
@@ -15,6 +15,7 @@ import { Button, Input, Spinner } from "@/components/ui";
 export function TabiSoulDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { tripId } = useSession();
   const { agent } = useChat();
+  const soulName = useAgentName();
   const [items, setItems] = useState<AgentMemory[] | null>(null);
 
   const load = async () => {
@@ -38,10 +39,8 @@ export function TabiSoulDialog({ open, onClose }: { open: boolean; onClose: () =
       <aside className="tm-pop-in tm-scroll absolute top-0 right-0 flex h-full w-[400px] max-w-[94vw] flex-col overflow-y-auto border-l border-line bg-surface shadow-pop">
         <header className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-surface px-4 py-3">
           <h2 className="flex items-center gap-2 font-display text-base font-semibold text-ink">
-            <span className="flex size-7 items-center justify-center rounded-full bg-ocean text-white">
-              <Robot weight="fill" className="size-4" />
-            </span>
-            塔比的靈魂與記憶
+            <AgentFace className="flex size-7 items-center justify-center rounded-full" iconClassName="size-4" />
+            {soulName} 的靈魂與記憶
           </h2>
           <button
             aria-label="關閉"
@@ -75,7 +74,7 @@ export function TabiSoulDialog({ open, onClose }: { open: boolean; onClose: () =
           </div>
         )}
         <p className="px-4 pt-3 text-[12px] leading-relaxed text-ink-faint">
-          這裡的每一條都會跟著塔比的每一輪對話(重置對話也不會忘)。可以直接在聊天裡請塔比記住,
+          這裡的每一條都會跟著{soulName}的每一輪對話(重置對話也不會忘)。可以直接在聊天裡請{soulName}記住,
           它會出確認卡;也可以在這裡手動調整。
         </p>
 

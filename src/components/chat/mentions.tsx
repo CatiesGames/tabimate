@@ -7,6 +7,7 @@ import { cn } from "@/lib/cn";
 import { dayDateLabel } from "@/lib/dates";
 import type { ChatMention, Itinerary } from "@/shared/types";
 import { useSelection, useTrip } from "@/lib/workspace/WorkspaceProvider";
+import { useAgentName as useAgentNameInline } from "./AgentFace";
 
 export type MentionCandidate = ChatMention & { hint: string };
 
@@ -127,11 +128,12 @@ export function MentionPicker({
   onPick: (c: MentionCandidate) => void;
   onHover: (i: number) => void;
 }) {
+  const pickerAgentName = useAgentNameInline();
   if (items.length === 0) return null;
   return (
     <div className="tm-pop-in absolute right-0 bottom-full left-0 z-30 mb-1.5 overflow-hidden rounded-xl border border-line bg-surface shadow-pop">
       <p className="border-b border-line px-3 py-1.5 text-[11px] text-ink-faint">
-        指名給塔比 — 天數、地點或交通
+        指名給{pickerAgentName} — 天數、地點或交通
       </p>
       <ul className="tm-scroll max-h-56 overflow-y-auto py-1">
         {items.map((c, i) => {

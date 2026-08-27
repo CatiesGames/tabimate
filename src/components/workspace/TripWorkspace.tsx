@@ -373,7 +373,7 @@ export function TripWorkspace() {
           [
             { key: "timeline", label: "行程", icon: ListDashes },
             { key: "map", label: "地圖", icon: MapTrifold },
-            { key: "chat", label: "塔比", icon: ChatCircle },
+            { key: "chat", label: agentCtx.agent.identity.name || "塔比", icon: ChatCircle },
           ] as const
         ).map((tab) => (
           <button

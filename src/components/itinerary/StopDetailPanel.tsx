@@ -25,10 +25,12 @@ import {
   useTrip,
 } from "@/lib/workspace/WorkspaceProvider";
 import { ConfirmDialog, Hint, ImageLightbox, SegmentedChips, Switch, Tag } from "@/components/ui";
+import { useAgentName } from "@/components/chat/AgentFace";
 import { BookingBadge, bookingWords, VerifyBadge } from "./badges";
 import { TimeField } from "./TimeField";
 
 export function StopDetailPanel({ onShowMap }: { onShowMap?: () => void }) {
+  const sdAgentName = useAgentName();
   const { doc, editOps } = useTrip();
   const { selectedStopId, setSelectedStop } = useSelection();
   const { googleReady } = useSession();
@@ -343,7 +345,7 @@ export function StopDetailPanel({ onShowMap }: { onShowMap?: () => void }) {
         {/* 已查證卻沒留下來源(舊版寫入):明講並引導補查,不默默隱藏 */}
         {stop.verifyStatus !== "unverified" && stop.verifySources.length === 0 && (
           <p className="rounded-lg bg-sun-wash/60 px-3 py-2 text-[12px] text-sun-deep">
-            這筆查證沒有留下來源(舊版寫入)。可以跟塔比說「重新查證{stop.name}」補上來源。
+            這筆查證沒有留下來源(舊版寫入)。可以跟{sdAgentName}說「重新查證{stop.name}」補上來源。
           </p>
         )}
 

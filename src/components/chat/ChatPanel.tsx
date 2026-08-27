@@ -38,6 +38,7 @@ import { ArrowClockwise, CaretDown, ImagesSquare, Wrench, XCircle } from "@phosp
 
 export function ChatPanel() {
   const { store, agent } = useChat();
+  const rootAgentName = useAgentName();
   const { me, tripId, memberOf } = useSession();
   const uploadRef = useRef<{ upload: (f: File) => void } | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -68,7 +69,7 @@ export function ChatPanel() {
       {dragOver && (
         <div className="pointer-events-none absolute inset-2 z-20 flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-ocean bg-ocean-wash/85">
           <ImagesSquare weight="duotone" className="size-10 text-ocean" />
-          <p className="text-sm font-medium text-ocean-deep">放開加入圖片,可搭配文字一起傳給塔比</p>
+          <p className="text-sm font-medium text-ocean-deep">放開加入圖片,可搭配文字一起傳給{rootAgentName}</p>
         </div>
       )}
       <ChatHeader />
@@ -82,7 +83,7 @@ export function ChatPanel() {
       />
       {!agent.available && (
         <p className="border-t border-line bg-sun-wash px-3 py-1.5 text-center text-[11px] text-sun-deep">
-          claude CLI 未安裝或不可用,塔比暫時休息中
+          claude CLI 未安裝或不可用,{rootAgentName}暫時休息中
         </p>
       )}
       {agent.queue.length > 0 && (
@@ -109,9 +110,9 @@ function ChatHeader() {
   return (
     <header className="flex items-center gap-2.5 border-b border-line px-3 py-2.5">
       <button
-        aria-label="塔比的靈魂與記憶"
+        aria-label={`${agentName} 的靈魂與記憶`}
         onClick={() => setSoulOpen(true)}
-        title="查看塔比的靈魂與記憶"
+        title={`查看 ${agentName} 的靈魂與記憶`}
         className="tm-focus relative flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full transition-transform hover:scale-105 active:scale-95"
       >
         <AgentFace className="flex size-9 items-center justify-center rounded-full" iconClassName="size-5" />
@@ -152,7 +153,7 @@ function ChatHeader() {
           )}
         </p>
       </div>
-      <Hint tip={"重置對話脈絡\n塔比會忘記先前聊過的內容\n(行程資料不受影響)"}>
+      <Hint tip={`重置對話脈絡\n${agentName}會忘記先前聊過的內容\n(行程資料不受影響)`}>
         <button
           aria-label="重置對話脈絡"
           onClick={() => setConfirmReset(true)}
@@ -165,8 +166,8 @@ function ChatHeader() {
       <ConfirmDialog
         open={confirmReset}
         onOpenChange={setConfirmReset}
-        title="重置塔比的對話脈絡?"
-        description="塔比會忘記先前聊過的內容(偏好、討論到一半的事),下一則訊息從新對話開始。行程、預約、版本歷史都不受影響。"
+        title={`重置${agentName}的對話脈絡?`}
+        description={`${agentName}會忘記先前聊過的內容(偏好、討論到一半的事),下一則訊息從新對話開始。行程、預約、版本歷史都不受影響。`}
         confirmLabel="重置"
         onConfirm={() => {
           setConfirmReset(false);
@@ -312,12 +313,13 @@ function MessageList({ messages }: { messages: ChatMessage[] }) {
 }
 
 function EmptyChat() {
+  const emptyName = useAgentName();
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
       <span className="flex size-12 items-center justify-center rounded-2xl bg-ocean-wash">
         <AgentFace className="flex size-10 items-center justify-center rounded-full" iconClassName="size-6" />
       </span>
-      <p className="text-sm font-medium text-ink">跟塔比一起規劃這趟旅程</p>
+      <p className="text-sm font-medium text-ink">跟{emptyName}一起規劃這趟旅程</p>
       <p className="text-xs leading-relaxed text-ink-soft">
         試試:「幫我排第一天的行程」
         <br />
@@ -619,6 +621,7 @@ function AgentActivityLine({
   preparingAlbum?: boolean;
 }) {
   const { store } = useChat();
+  const actName = useAgentName();
   useSyncExternalStore(store.subscribeStream, store.streamVersion, store.streamVersion);
   const [, setTick] = useState(0);
   useEffect(() => {
@@ -634,11 +637,11 @@ function AgentActivityLine({
     phase === "stopping"
       ? "收尾中"
       : preparingAlbum
-        ? "塔比準備分享旅遊相簿"
+        ? `${actName}準備分享旅遊相簿`
         : runningTool && runningTool.kind === "tool_status"
           ? runningTool.label
           : phase === "thinking"
-            ? "塔比翻著旅遊筆記"
+            ? `${actName}翻著旅遊筆記`
             : "整理回覆";
   const secs = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
   const time = secs >= 60 ? `${Math.floor(secs / 60)} 分 ${secs % 60} 秒` : `${secs} 秒`;
@@ -674,6 +677,7 @@ function Composer({
   const { tripId } = useSession();
   const { doc } = useTrip();
   const { activeDayId } = useSelection();
+  const composerName = useAgentName();
   useSyncExternalStore(store.subscribeStream, store.streamVersion, store.streamVersion);
   const busy = store.agentPhase !== "idle";
 
@@ -876,7 +880,7 @@ function Composer({
           value={text}
           disabled={disabled}
           rows={1}
-          placeholder={disabled ? "塔比休息中" : "跟塔比討論行程…(Enter 送出)"}
+          placeholder={disabled ? `${composerName}休息中` : `跟${composerName}討論行程…(Enter 送出)`}
           onChange={(e) => {
             setText(e.target.value);
             detectTrigger(e.target.value, e.target.selectionStart ?? e.target.value.length);

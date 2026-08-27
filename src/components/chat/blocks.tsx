@@ -7,7 +7,6 @@ import { Brain, ArrowSquareOut,
   Check,
   CheckCircle,
   ListChecks,
-  Robot,
   SealCheck,
   Ticket,
   Warning,
@@ -25,6 +24,7 @@ import {
   useTrip,
 } from "@/lib/workspace/WorkspaceProvider";
 import { Avatar, Button, Spinner, Tag, ZoomableImage } from "@/components/ui";
+import { AgentFace, useAgentName } from "./AgentFace";
 
 export function BlockRenderer({
   block,
@@ -98,6 +98,7 @@ function MemoryProposalBlock({
   idx: number;
 }) {
   const { memberOf } = useSession();
+  const memAgentName = useAgentName();
   const resolve = (accept: boolean) =>
     apiFetch(`/api/trips/${location.pathname.split("/")[2]}/chat/resolve-memory`, {
       json: { messageId, idx, accept },
@@ -116,7 +117,7 @@ function MemoryProposalBlock({
     <div className="overflow-hidden rounded-xl border border-ocean/30 bg-ocean-wash/40">
       <p className="flex items-center gap-1.5 px-3 pt-2.5 text-xs font-medium text-ocean-deep">
         <Brain weight="fill" className="size-3.5" />
-        塔比想{label}
+        {memAgentName}想{label}
       </p>
       {action === "update" && block.oldContent ? (
         <div className="px-3 py-2 text-[13px] leading-relaxed">
@@ -379,6 +380,7 @@ export function ToolStatusBlock({
   /** 訊息已結束(中止/錯誤/完成):進行中的 pill 改為靜態「已中止」,不再轉。 */
   ended?: boolean;
 }) {
+  const toolAgentName = useAgentName();
   const state = ended && block.state === "running" ? "stopped" : block.state;
   return (
     <div
@@ -409,7 +411,7 @@ export function ToolStatusBlock({
           )}
         >
           {block.label}
-          {state === "failed" && " — 這次沒成功,塔比會自行調整"}
+          {state === "failed" && ` — 這次沒成功,${toolAgentName}會自行調整`}
           {state === "stopped" && "(已中止)"}
         </span>
       </div>
@@ -666,7 +668,7 @@ function ProposalBlock({ proposalId }: { proposalId: string }) {
       )}
     >
       <div className="flex items-center gap-2 border-b border-line bg-coral-wash/40 px-3 py-2">
-        <Robot weight="fill" className="size-4 text-ocean" />
+        <AgentFace className="flex size-5 items-center justify-center rounded-full" iconClassName="size-3" />
         <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-ink">
           {proposal.summary}
         </span>

@@ -25,20 +25,22 @@ import {
   useTrip,
 } from "@/lib/workspace/WorkspaceProvider";
 import { AvatarStack, Hint, Tag } from "@/components/ui";
+import { useAgentName } from "@/components/chat/AgentFace";
 import { BookingBadge, VerifyBadge } from "./badges";
 import { LegEditor } from "./LegEditor";
 import { TimeField } from "./TimeField";
 import { StopThumb } from "./StopThumb";
 import { AddStop } from "./AddStop";
 
-const CONFLICT_TIP =
-  "時間與前後行程順序衝突\n調整時間,或直接拖曳卡片重新排序\n(也可以請塔比整理)";
+const conflictTip = (name: string) =>
+  `時間與前後行程順序衝突\n調整時間,或直接拖曳卡片重新排序\n(也可以請${name}整理)`;
 
 export function Timeline() {
   const { doc, changedStopIds, editOps } = useTrip();
   const { activeDayId, selectedStopId, setSelectedStop, selectedLegId, setSelectedLeg } = useSelection();
   const { viewersOfStop } = usePresence();
   const { memberOf } = useSession();
+  const tlAgentName = useAgentName();
 
   const listRef = useRef<HTMLDivElement>(null);
   const suppressClick = useRef(false);
@@ -232,7 +234,7 @@ export function Timeline() {
       )}
       {stops.length === 0 && (
         <p className="rounded-lg border border-dashed border-line-strong px-4 py-6 text-center text-[13px] text-ink-faint">
-          這天還沒有安排,從下方搜尋加入地點,或直接請右側的塔比規劃。
+          這天還沒有安排,從下方搜尋加入地點,或直接請{tlAgentName}規劃。
         </p>
       )}
       {stops.map((stop, i) => {
@@ -334,7 +336,7 @@ export function Timeline() {
                       )}
                     >
                       {conflicted && (
-                        <Hint tip={CONFLICT_TIP}>
+                        <Hint tip={conflictTip(tlAgentName)}>
                           <Warning weight="fill" className="size-3.5 text-alert" />
                         </Hint>
                       )}
