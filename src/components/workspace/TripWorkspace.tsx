@@ -6,6 +6,7 @@ import { ArrowClockwise, AirplaneTilt,
   ClockCounterClockwise,
   DotsThreeVertical,
   FilePdf,
+  GearSix,
   ListDashes,
   MapTrifold,
   SignOut,
@@ -281,6 +282,7 @@ export function TripWorkspace() {
                 className="tm-pop-in z-40 w-48 rounded-xl border border-line bg-surface p-1.5 shadow-pop"
               >
                 {[
+                  { label: "旅遊設定", icon: GearSix, onClick: () => setTripSettingsOpen(true) },
                   {
                     label: `預約總覽${unbookedCount > 0 ? `(${unbookedCount} 未訂)` : ""}`,
                     icon: Ticket,
@@ -388,11 +390,7 @@ export function TripWorkspace() {
         ))}
       </nav>
 
-      <DayDrawer
-        open={dayDrawerOpen}
-        onClose={() => setDayDrawerOpen(false)}
-        onOpenSettings={() => setTripSettingsOpen(true)}
-      />
+      <DayDrawer open={dayDrawerOpen} onClose={() => setDayDrawerOpen(false)} />
       <TripSettingsDialog open={tripSettingsOpen} onOpenChange={setTripSettingsOpen} />
       <VersionsPanel open={versionsOpen} onClose={() => setVersionsOpen(false)} />
       <BookingOverview open={bookingOpen} onClose={() => setBookingOpen(false)} />

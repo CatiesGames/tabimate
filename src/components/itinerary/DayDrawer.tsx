@@ -1,6 +1,6 @@
 "use client";
 
-import { GearSix, Warning, X } from "@phosphor-icons/react";
+import { Warning, X } from "@phosphor-icons/react";
 
 import { detectTimeConflicts } from "@/shared/conflicts";
 import { cn } from "@/lib/cn";
@@ -12,16 +12,8 @@ import {
 } from "@/lib/workspace/WorkspaceProvider";
 import { AvatarStack } from "@/components/ui";
 
-/** 手機版:左側天數抽屜(頂欄放不下 tabs 時的切換入口)。 */
-export function DayDrawer({
-  open,
-  onClose,
-  onOpenSettings,
-}: {
-  open: boolean;
-  onClose: () => void;
-  onOpenSettings: () => void;
-}) {
+/** 手機版:左側天數抽屜(頂欄放不下 tabs 時的切換入口;旅遊設定在右上「更多動作」選單)。 */
+export function DayDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { doc } = useTrip();
   const { activeDayId, setActiveDay } = useSelection();
   const { viewersOfDay } = usePresence();
@@ -98,16 +90,6 @@ export function DayDrawer({
           })}
         </ol>
 
-        <button
-          onClick={() => {
-            onClose();
-            onOpenSettings();
-          }}
-          className="tm-focus mx-3 mb-3 flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-line-strong py-2.5 text-sm text-ink-soft transition-colors hover:border-coral hover:text-coral-deep"
-        >
-          <GearSix weight="bold" className="size-4" />
-          旅遊設定(名稱/日期/天數)
-        </button>
       </aside>
     </div>
   );
