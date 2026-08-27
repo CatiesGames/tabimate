@@ -76,7 +76,9 @@ export function PrintView({ tripId }: { tripId: string }) {
   const dayIndexOf = new Map(days.map((d, i) => [d.id, i]));
 
   return (
-    <div className="mx-auto max-w-[780px] bg-white px-8 py-6 text-ink print:max-w-none print:px-0 print:py-0">
+    <div className="mx-auto w-[780px] bg-white px-8 py-6 text-ink print:w-auto print:max-w-none print:px-0 print:py-0">
+      {/* 統一紙張與邊界:桌機/手機列印出的 PDF 分頁與換行一致 */}
+      <style>{`@page { size: A4; margin: 12mm; }`}</style>
       {/* 螢幕工具列(不列印) */}
       <div className="mb-6 flex items-center gap-3 print:hidden">
         <button
