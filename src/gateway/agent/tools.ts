@@ -30,7 +30,7 @@ const OPERATIONS_DOC = `每個 operation 是一個物件,op 欄位決定種類:
 - {"op":"set_leg_booking","fromStopId":"...","bookingType?":"...","bookingStatus?":"booked","booking?":{...}} 只改交通購票標記/狀態,不動交通內容
 - {"op":"remove_leg","fromStopId":"..."}
 - {"op":"set_verification","stopId":"...","status":"verified|stale|unverified","sources":[{"url":"...","title":"...","checkedAt":0}]} — verified/stale **必須附至少一筆真實來源**(成員要能點開對照),否則整包提案會被拒
-- {"op":"update_trip","patch":{"title?","destination?","startDate?":"YYYY-MM-DD"}}
+- {"op":"update_trip","patch":{"title?","destination?","startDate?":"YYYY-MM-DD"}} 旅遊名稱/地點/出發日。天數另外用 add_day/remove_day 調(結尾日期=出發日+天數-1);**縮短行程(remove_day)會連同該天所有地點刪除,務必先跟成員確認**;誤刪可請成員從版本歷史一鍵還原,你也能用 list_versions 說明哪個版本還有那些內容
 dayId/stopId 用 get_itinerary 回傳的真實 id;同一批內先新增的實體可用 "$tempId" 引用。
 booking 物件欄位:platform/url/confirmationCode/price/onSaleDate/deadline/note。
 bookingType:none|reservation_required(不訂進不去)|ticket_required(要先買票)|recommended(建議預約)|walk_in_queue(現場排隊)。**bookingStatus 預設 not_booked,絕不自行帶 booked/unavailable**(只有成員明說已訂好才可,提案卡會醒目標示這類變更)。

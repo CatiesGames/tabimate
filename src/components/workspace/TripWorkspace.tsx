@@ -29,6 +29,7 @@ import { Avatar, AvatarStack, IconButton, ToastHost, TruncationTipHost } from "@
 import { DayTabs } from "@/components/itinerary/DayTabs";
 import { DayDrawer } from "@/components/itinerary/DayDrawer";
 import { Timeline } from "@/components/itinerary/Timeline";
+import { TripSettingsDialog } from "@/components/itinerary/TripSettings";
 import { StopDetailPanel } from "@/components/itinerary/StopDetailPanel";
 import { LegDetailPanel } from "@/components/itinerary/LegDetailPanel";
 import { MapPanel } from "@/components/map/MapPanel";
@@ -129,6 +130,7 @@ export function TripWorkspace() {
     return () => window.removeEventListener("tm-show-timeline", fn);
   }, []);
   const [dayDrawerOpen, setDayDrawerOpen] = useState(false);
+  const [tripSettingsOpen, setTripSettingsOpen] = useState(false);
   const { activeDayId } = useSelection();
   const agentCtx = useChat();
   const { store } = agentCtx;
@@ -169,7 +171,7 @@ export function TripWorkspace() {
         </div>
 
         <div className="min-w-0 flex-1 overflow-hidden max-md:hidden">
-          <DayTabs />
+          <DayTabs onOpenSettings={() => setTripSettingsOpen(true)} />
         </div>
 
         {/* 手機:目前天 pill → 左側抽屜切換 */}
@@ -386,7 +388,12 @@ export function TripWorkspace() {
         ))}
       </nav>
 
-      <DayDrawer open={dayDrawerOpen} onClose={() => setDayDrawerOpen(false)} />
+      <DayDrawer
+        open={dayDrawerOpen}
+        onClose={() => setDayDrawerOpen(false)}
+        onOpenSettings={() => setTripSettingsOpen(true)}
+      />
+      <TripSettingsDialog open={tripSettingsOpen} onOpenChange={setTripSettingsOpen} />
       <VersionsPanel open={versionsOpen} onClose={() => setVersionsOpen(false)} />
       <BookingOverview open={bookingOpen} onClose={() => setBookingOpen(false)} />
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Warning } from "@phosphor-icons/react";
+import { GearSix, Warning } from "@phosphor-icons/react";
 
 import { detectTimeConflicts } from "@/shared/conflicts";
 import { dayDateLabel } from "@/lib/dates";
@@ -13,8 +13,8 @@ import {
 } from "@/lib/workspace/WorkspaceProvider";
 import { AvatarStack, Hint } from "@/components/ui";
 
-export function DayTabs() {
-  const { doc, editOps } = useTrip();
+export function DayTabs({ onOpenSettings }: { onOpenSettings: () => void }) {
+  const { doc } = useTrip();
   const { activeDayId, setActiveDay } = useSelection();
   const { viewersOfDay } = usePresence();
   useSession();
@@ -22,10 +22,6 @@ export function DayTabs() {
   if (!doc) return null;
   const days = [...doc.days].sort((a, b) => a.position - b.position);
   const conflicts = detectTimeConflicts(doc.days, doc.stops);
-
-  const addDay = () => {
-    editOps([{ op: "add_day" }], `新增 Day ${days.length + 1}`);
-  };
 
   return (
     <nav className="tm-scroll flex items-center gap-1.5 overflow-x-auto px-1 py-1">
@@ -92,12 +88,13 @@ export function DayTabs() {
           </button>
         );
       })}
+      {/* 名稱/地點/起訖日期/天數 統一在旅遊設定裡改 */}
       <button
-        onClick={addDay}
+        onClick={onOpenSettings}
         className="tm-focus flex shrink-0 select-none items-center gap-1 rounded-full border border-dashed border-line-strong px-3 py-1.5 text-sm text-ink-faint transition-colors hover:border-coral hover:text-coral-deep active:scale-[0.97]"
       >
-        <Plus weight="bold" className="size-3.5" />
-        加一天
+        <GearSix weight="bold" className="size-3.5" />
+        旅遊設定
       </button>
     </nav>
   );

@@ -626,9 +626,14 @@ export function describeOps(ops: Operation[], before: ItinDoc): string {
       case "set_verification":
         parts.push(`查證 ${nameOf(op.stopId)}`);
         break;
-      case "update_trip":
-        parts.push("更新行程資訊");
+      case "update_trip": {
+        const f: string[] = [];
+        if (op.patch.title != null) f.push("名稱");
+        if ("destination" in op.patch) f.push("地點");
+        if ("startDate" in op.patch) f.push("日期");
+        parts.push(f.length > 0 ? `更新旅遊設定(${f.join("/")})` : "更新旅遊設定");
         break;
+      }
     }
   }
   let out = parts.join("、");

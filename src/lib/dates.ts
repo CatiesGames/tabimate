@@ -1,5 +1,24 @@
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 
+/** 今天(本地時區)的 YYYY-MM-DD。不能用 toISOString(UTC 會慢 8 小時)。 */
+export function todayISO(): string {
+  return new Date().toLocaleDateString("sv-SE");
+}
+
+/** YYYY-MM-DD 加 n 天(本地時區字串運算)。 */
+export function addDaysISO(iso: string, n: number): string {
+  const d = new Date(`${iso}T00:00:00`);
+  d.setDate(d.getDate() + n);
+  return d.toLocaleDateString("sv-SE");
+}
+
+/** 兩個 YYYY-MM-DD 相差天數(b - a)。 */
+export function diffDaysISO(a: string, b: string): number {
+  return Math.round(
+    (new Date(`${b}T00:00:00`).getTime() - new Date(`${a}T00:00:00`).getTime()) / 86_400_000,
+  );
+}
+
 /** trip.startDate + dayPosition → 「10/14 (二)」;無日期回 null。 */
 export function dayDateLabel(startDate: string | null, position: number): string | null {
   if (!startDate) return null;
