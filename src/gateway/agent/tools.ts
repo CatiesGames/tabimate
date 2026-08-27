@@ -45,6 +45,7 @@ bookingType:none|reservation_required(不訂進不去)|ticket_required(要先買
 - 入住日「最後行程→住宿」是普通 leg(住宿是當天真實 stop,用 set_leg);退房日早上的「住宿→首行程」交通用 lodgingMorningLeg。
 - 入住日「先到飯店放行李再出門」:住宿 stop 放在它實際的時間位置(如 15:00),之後照排晚上行程;只要住宿不在當天末位,畫面結尾會自動出現「今晚回這裡住」錨列,晚上回程時間/交通一樣用 update_day 的 lodgingReturnTime/lodgingEveningLeg。不要為了收尾把住宿硬移到最後。
 - **住宿主卡 = 入住日排序最前的那張 lodging 卡**(check-in/退房/nights 都設定在它身上);同一天在主卡之後再出現的 lodging(以及續住日的任何 lodging)都是「回飯店」輕量卡(中途休息/放戰利品),startTime/endTime 設當天時段即可,不影響續住判定。真正的過夜住宿永遠只有入住那天的主卡那一筆。
+- **排/大改一整天時的完整性檢查(必做)**:交通要「首尾完整」——相鄰地點之間用 set_leg 之外,只要那天有住宿錨點(前晚續住,或當天已入住、住宿不在末位),**同一批 ops 必須一併補**:早上 update_day {lodgingDepartTime, lodgingMorningLeg}(住宿→第一站),晚上 update_day {lodgingReturnTime, lodgingEveningLeg}(最後一站→住宿)。少了這兩段等於成員不知道怎麼出門/回家,規劃不算完成。
 - 主卡不必是當天最後一項:主卡在末位=晚上直接到飯店收尾;主卡之後還有行程時畫面結尾會自動出現「今晚回這裡住」錨列。`;
 
 export function registerCoreTools() {
