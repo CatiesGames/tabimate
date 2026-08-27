@@ -172,7 +172,7 @@ export function TripWorkspace() {
         </div>
 
         <div className="min-w-0 flex-1 overflow-hidden max-md:hidden">
-          <DayTabs onOpenSettings={() => setTripSettingsOpen(true)} />
+          <DayTabs />
         </div>
 
         {/* 手機:目前天 pill → 左側抽屜切換 */}
@@ -237,6 +237,9 @@ export function TripWorkspace() {
 
           {/* 桌面:動作 icons;手機:收進漢堡選單 */}
           <div className="flex items-center gap-1.5 max-md:hidden">
+            <IconButton label="旅遊設定" size="sm" onClick={() => setTripSettingsOpen(true)}>
+              <GearSix className="size-4.5" />
+            </IconButton>
             <IconButton label="預約總覽" size="sm" onClick={() => setBookingOpen(true)} className="relative">
               <Ticket className="size-4.5" />
               {unbookedCount > 0 && (

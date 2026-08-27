@@ -1,6 +1,7 @@
 "use client";
 
-import { GearSix, Warning } from "@phosphor-icons/react";
+import { useEffect, useRef } from "react";
+import { Warning } from "@phosphor-icons/react";
 
 import { detectTimeConflicts } from "@/shared/conflicts";
 import { dayDateLabel } from "@/lib/dates";
@@ -13,18 +14,35 @@ import {
 } from "@/lib/workspace/WorkspaceProvider";
 import { AvatarStack, Hint } from "@/components/ui";
 
-export function DayTabs({ onOpenSettings }: { onOpenSettings: () => void }) {
+export function DayTabs() {
   const { doc } = useTrip();
   const { activeDayId, setActiveDay } = useSelection();
   const { viewersOfDay } = usePresence();
   useSession();
+
+  const navRef = useRef<HTMLElement>(null);
+  // 天數多到溢出時:換天(含提及跳轉)自動把目前的 tab 捲進視野
+  useEffect(() => {
+    navRef.current
+      ?.querySelector('[data-active="true"]')
+      ?.scrollIntoView({ inline: "nearest", block: "nearest", behavior: "smooth" });
+  }, [activeDayId]);
 
   if (!doc) return null;
   const days = [...doc.days].sort((a, b) => a.position - b.position);
   const conflicts = detectTimeConflicts(doc.days, doc.stops);
 
   return (
-    <nav className="tm-scroll flex items-center gap-1.5 overflow-x-auto px-1 py-1">
+    <nav
+      ref={navRef}
+      // 滑鼠滾輪(垂直)在 tabs 上滾 → 水平捲動;觸控板橫滑照常
+      onWheel={(e) => {
+        const el = navRef.current;
+        if (!el || el.scrollWidth <= el.clientWidth) return;
+        if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) el.scrollLeft += e.deltaY;
+      }}
+      className="tm-scroll flex items-center gap-1.5 overflow-x-auto px-1 py-1"
+    >
       {days.map((day, i) => {
         const active = day.id === activeDayId;
         const viewers = viewersOfDay(day.id);
@@ -45,6 +63,7 @@ export function DayTabs({ onOpenSettings }: { onOpenSettings: () => void }) {
         return (
           <button
             key={day.id}
+            data-active={active || undefined}
             onClick={() => setActiveDay(day.id)}
             className={cn(
               "tm-focus relative flex shrink-0 select-none items-center gap-2 rounded-full border px-4 py-1.5 transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.97]",
@@ -88,14 +107,6 @@ export function DayTabs({ onOpenSettings }: { onOpenSettings: () => void }) {
           </button>
         );
       })}
-      {/* 名稱/地點/起訖日期/天數 統一在旅遊設定裡改 */}
-      <button
-        onClick={onOpenSettings}
-        className="tm-focus flex shrink-0 select-none items-center gap-1 rounded-full border border-dashed border-line-strong px-3 py-1.5 text-sm text-ink-faint transition-colors hover:border-coral hover:text-coral-deep active:scale-[0.97]"
-      >
-        <GearSix weight="bold" className="size-3.5" />
-        旅遊設定
-      </button>
     </nav>
   );
 }
