@@ -806,14 +806,9 @@ function Composer({
   };
 
   return (
-    <div
-      className="border-t border-line p-2.5"
-      onDragOver={(e) => e.preventDefault()}
-      onDrop={(e) => {
-        e.preventDefault();
-        for (const f of e.dataTransfer.files) if (f.type.startsWith("image/")) upload(f);
-      }}
-    >
+    // 拖圖統一由 ChatPanel 根節點處理(uploadRef):這裡不再自掛 onDrop,
+    // 否則丟在輸入區會冒泡成兩次上傳(同圖加兩張)
+    <div className="border-t border-line p-2.5">
       {uploads.length > 0 && (
         <div className="mb-2 flex flex-wrap gap-1.5">
           {uploads.map((u) => (
