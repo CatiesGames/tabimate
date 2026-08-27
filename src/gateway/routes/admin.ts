@@ -83,22 +83,27 @@ export function registerAdminRoutes() {
       title?: string;
       destination?: string;
       startDate?: string;
+      /** 起訖換算的天數(1~60,省略=1):建立時直接鋪好 Day 1..N。 */
+      days?: number;
     }>(ctx.req);
     if (!body.title?.trim()) throw new HttpError(400, "missing_title");
     if (body.startDate && !/^\d{4}-\d{2}-\d{2}$/.test(body.startDate)) {
       throw new HttpError(400, "bad_start_date");
     }
+    const dayCount = Math.min(60, Math.max(1, Math.round(Number(body.days) || 1)));
     const id = newId();
     const t = now();
     db.run(
       "INSERT INTO trips (id, title, destination, start_date, created_at, updated_at) VALUES (?,?,?,?,?,?)",
       [id, body.title.trim(), body.destination?.trim() || null, body.startDate || null, t, t],
     );
-    // 新行程直接給 Day 1,工作區一打開就能用。
-    db.run(
-      "INSERT INTO days (id, trip_id, position, created_at, updated_at) VALUES (?,?,0,?,?)",
-      [newId(), id, t, t],
-    );
+    // 新行程直接鋪好天數,工作區一打開就能用。
+    for (let i = 0; i < dayCount; i++) {
+      db.run(
+        "INSERT INTO days (id, trip_id, position, created_at, updated_at) VALUES (?,?,?,?,?)",
+        [newId(), id, i, t, t],
+      );
+    }
     return json({ id });
   });
 

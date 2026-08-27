@@ -13,9 +13,10 @@ import {
 } from "@phosphor-icons/react";
 
 import { apiFetch } from "@/lib/api";
+import { diffDaysISO } from "@/lib/dates";
 import { cn } from "@/lib/cn";
 import { AVATAR_COLORS } from "@/shared/config";
-import {
+import { DateField,
   Avatar,
   Button,
   ConfirmDialog,
@@ -276,6 +277,7 @@ function TripFormDialog({
   const [title, setTitle] = useState("");
   const [destination, setDestination] = useState("");
   const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [archived, setArchived] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -285,6 +287,7 @@ function TripFormDialog({
       setTitle(trip?.title ?? "");
       setDestination(trip?.destination ?? "");
       setStartDate(trip?.startDate ?? "");
+      setEndDate("");
       setArchived(trip?.status === "archived");
       setHidden(trip?.isHidden ?? false);
     }
@@ -305,7 +308,9 @@ function TripFormDialog({
           },
         });
       } else {
-        await apiFetch("/api/admin/trips", { json: { title, destination, startDate } });
+        const days =
+          startDate && endDate ? Math.max(1, diffDaysISO(startDate, endDate) + 1) : 1;
+        await apiFetch("/api/admin/trips", { json: { title, destination, startDate, days } });
       }
       toast(trip ? "行程已更新" : "行程已建立", { tone: "success" });
       onSaved();
@@ -326,15 +331,42 @@ function TripFormDialog({
           <Field label="目的地">
             <Input value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="東京" />
           </Field>
-          <Field label="出發日期" hint="YYYY-MM-DD">
-            <Input
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value.replace(/[^\d-]/g, "").slice(0, 10))}
-              placeholder="2026-10-12"
-              className="tm-num"
+          <Field label="出發日期">
+            <DateField
+              value={startDate || null}
+              onChange={(v) => {
+                setStartDate(v ?? "");
+                if (!v) setEndDate("");
+                else if (endDate && endDate < v) setEndDate(v);
+              }}
+              clearable
             />
           </Field>
         </div>
+        {!trip && (
+          <Field
+            label="最後一天"
+            hint={
+              startDate && endDate
+                ? `共 ${diffDaysISO(startDate, endDate) + 1} 天(建立後也能在工作區的旅遊設定調整)`
+                : "選了出發日再選;不選=先建 1 天"
+            }
+          >
+            {startDate ? (
+              <DateField
+                value={endDate || null}
+                min={startDate}
+                onChange={(v) => setEndDate(v ?? "")}
+                placeholder="選最後一天"
+                clearable
+              />
+            ) : (
+              <span className="flex h-9 items-center text-[13px] text-ink-faint">
+                先選出發日期
+              </span>
+            )}
+          </Field>
+        )}
         {trip && (
           <>
             <div className="flex items-center gap-3">
@@ -355,7 +387,7 @@ function TripFormDialog({
           </Button>
           <Button
             loading={busy}
-            disabled={!title.trim() || (!!startDate && !/^\d{4}-\d{2}-\d{2}$/.test(startDate))}
+            disabled={!title.trim()}
             onClick={save}
           >
             {trip ? "儲存" : "建立"}
