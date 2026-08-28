@@ -149,3 +149,35 @@ export function detectTimeConflicts(days: Day[], stops: Stop[]): Set<string> {
   }
   return conflicts;
 }
+
+/**
+ * 當天的住宿錨點是否離「當天主要活動區」很遠(如遠征另一座城市):
+ * 是的話地圖視野自動不遷就住宿(標記照畫)。門檻=活動區對角線 1.5 倍,至少 5km,
+ * 所以住宿在活動區附近(同城)一定納入、跨城遠征一定排除;每天各自判定。
+ */
+export function lodgingFarFromDay(
+  lodging: Stop,
+  stops: Stop[],
+  dayId: string,
+): boolean {
+  if (lodging.lat == null || lodging.lng == null) return false;
+  const pts = stops.filter(
+    (s) =>
+      s.dayId === dayId &&
+      s.lat != null &&
+      s.lng != null &&
+      !s.excludeFromFit &&
+      s.id !== lodging.id,
+  );
+  if (pts.length === 0) return false;
+  const lats = pts.map((s) => s.lat!);
+  const lngs = pts.map((s) => s.lng!);
+  const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
+  const cLat = (minLat + maxLat) / 2, cLng = (minLng + maxLng) / 2;
+  const kmPerLat = 111;
+  const kmPerLng = 111 * Math.cos((cLat * Math.PI) / 180);
+  const diagKm = Math.hypot((maxLat - minLat) * kmPerLat, (maxLng - minLng) * kmPerLng);
+  const distKm = Math.hypot((lodging.lat - cLat) * kmPerLat, (lodging.lng - cLng) * kmPerLng);
+  return distKm > Math.max(1.5 * diagKm, 5);
+}

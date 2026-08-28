@@ -11,7 +11,7 @@ import {
   staticMap,
   type Waypoint,
 } from "../google";
-import { carryOverLodging, primaryLodgingOf } from "../../shared/conflicts";
+import { carryOverLodging, lodgingFarFromDay, primaryLodgingOf } from "../../shared/conflicts";
 import { db } from "../db";
 import { loadDoc } from "../itinerary";
 import { HttpError, json, route } from "../http";
@@ -118,10 +118,14 @@ export function registerGoogleRoutes() {
       !carry && ownLodging && dayStops[dayStops.length - 1]?.id !== ownLodging.id
         ? ownLodging
         : null;
-    // 住宿設了「不納入視野」時,主要區域圖(scope=main)一致排除(全程圖照畫)
+    // 住宿「不納入視野」或離當天活動區很遠(逐日自動判定)時,
+    // 主要區域圖(scope=main)一致排除(全程圖照畫)
     const lodgingStop =
       carry?.stop ?? (midday ? midday : null);
-    const lodgingExcluded = scope === "main" && !!lodgingStop?.excludeFromFit;
+    const lodgingExcluded =
+      scope === "main" &&
+      !!lodgingStop &&
+      (lodgingStop.excludeFromFit || lodgingFarFromDay(lodgingStop, doc.stops, dayId));
     const lodging =
       !lodgingExcluded && carry && carry.stop.lat != null && carry.stop.lng != null
         ? { lat: carry.stop.lat, lng: carry.stop.lng, returnAtNight: !carry.isCheckoutDay }

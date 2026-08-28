@@ -375,7 +375,7 @@ export function StopDetailPanel({ onShowMap }: { onShowMap?: () => void }) {
         <BookingSection stop={stop} />
 
         {stop.lat != null && (
-          <Hint tip={"打開後,地圖總覽的縮放範圍不再遷就這個點\n(適合很遠的機場/車站;地圖上仍會顯示它的編號)"}>
+          <Hint tip={"打開後,地圖總覽的縮放範圍不再遷就這個點\n(適合很遠的機場/車站;地圖上仍會顯示它的編號)\n住宿另有逐日自動判定:哪天遠征其他城市,\n那天的視野會自動不遷就住宿,不用開這裡"}>
             <div className="flex items-center justify-between rounded-lg bg-sunken px-3 py-2">
               <span className="text-xs text-ink-soft">不納入地圖視野(仍顯示標記)</span>
               <Switch

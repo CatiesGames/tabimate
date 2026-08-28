@@ -200,3 +200,31 @@ describe("住宿跨夜", () => {
     expect(detectTimeConflicts(days, stops).size).toBe(0);
   });
 });
+
+import { lodgingFarFromDay } from "./conflicts";
+
+describe("lodgingFarFromDay(住宿視野逐日自動判定)", () => {
+  const mk = (id: string, dayId: string, lat: number, lng: number, extra: Partial<import("./types").Stop> = {}) =>
+    ({ id, dayId, lat, lng, position: 0, name: id, category: "sight", excludeFromFit: false, ...extra }) as import("./types").Stop;
+  const hotel = mk("h", "d0", 35.71, 139.796, { category: "lodging" });
+
+  test("同城:住宿離活動區 2km 內 → 納入(false)", () => {
+    const stops = [mk("a", "d1", 35.714, 139.777), mk("b", "d1", 35.715, 139.775)];
+    expect(lodgingFarFromDay(hotel, stops, "d1")).toBe(false);
+  });
+  test("遠征他城:住宿離活動區 300km → 排除(true)", () => {
+    const stops = [mk("a", "d1", 34.99, 135.76), mk("b", "d1", 35.0, 135.77)]; // 京都
+    expect(lodgingFarFromDay(hotel, stops, "d1")).toBe(true);
+  });
+  test("活動區自身跨度大時門檻放寬(對角線 1.5 倍)", () => {
+    const stops = [mk("a", "d1", 35.5, 139.5), mk("b", "d1", 35.9, 140.0)]; // 對角 ~60km
+    const nearishHotel = mk("h2", "d0", 35.2, 139.3, { category: "lodging" }); // 離中心 ~55km < 90km
+    expect(lodgingFarFromDay(nearishHotel, stops, "d1")).toBe(false);
+  });
+  test("當天沒有可定位行程 → 納入(false)", () => {
+    expect(lodgingFarFromDay(hotel, [], "d1")).toBe(false);
+  });
+  test("無座標住宿 → false", () => {
+    expect(lodgingFarFromDay(mk("h3", "d0", null as never, null as never), [mk("a", "d1", 34.99, 135.76)], "d1")).toBe(false);
+  });
+});

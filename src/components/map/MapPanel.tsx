@@ -13,7 +13,7 @@ import { apiFetch } from "@/lib/api";
 import { parseCarryLegSelection, resolveCarryLeg } from "@/lib/carryLeg";
 import { CATEGORY_META, guessCategory } from "@/lib/categories";
 import { cn } from "@/lib/cn";
-import { carryOverLodging } from "@/shared/conflicts";
+import { carryOverLodging, lodgingFarFromDay } from "@/shared/conflicts";
 import type { Leg, Stop } from "@/shared/types";
 import {
   useSelection,
@@ -58,12 +58,20 @@ function MapCanvas() {
     [doc, activeDayId],
   );
   const carryStop = carry && carry.stop.lat != null && carry.stop.lng != null ? carry.stop : null;
-  // 視野計算排除標記為 excludeFromFit 的點(marker 照畫,總覽不被遠點撐大)
+  // 視野計算排除標記為 excludeFromFit 的點(marker 照畫,總覽不被遠點撐大);
+  // 續住住宿另有逐日自動判定:離當天活動區很遠(遠征他城)就不遷就它
   const fitStops = useMemo(() => {
     const base = located.filter((s2) => !s2.excludeFromFit);
-    const withCarry = carryStop && !carryStop.excludeFromFit ? [...base, carryStop] : base;
+    const withCarry =
+      carryStop &&
+      !carryStop.excludeFromFit &&
+      doc &&
+      activeDayId &&
+      !lodgingFarFromDay(carryStop, doc.stops, activeDayId)
+        ? [...base, carryStop]
+        : base;
     return withCarry.length > 0 ? withCarry : located;
-  }, [located, carryStop]);
+  }, [located, carryStop, doc, activeDayId]);
 
   const [poi, setPoi] = useState<{ placeId: string; lat: number; lng: number } | null>(null);
 
