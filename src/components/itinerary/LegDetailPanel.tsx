@@ -10,7 +10,7 @@ import { cn } from "@/lib/cn";
 import { useSelection, useTrip } from "@/lib/workspace/WorkspaceProvider";
 import { carryLegSaveOp, parseCarryLegSelection, resolveCarryLeg } from "@/lib/carryLeg";
 import type { CarryLeg } from "@/shared/types";
-import { effectiveDurationMin } from "@/shared/changeset";
+import { effectiveDurationMin, isDurationEstimate } from "@/shared/changeset";
 import { ConfirmDialog, SegmentedChips, Tag } from "@/components/ui";
 import { BookingBadge, bookingWords } from "./badges";
 import { LegEditor } from "./LegEditor";
@@ -97,6 +97,7 @@ export function LegDetailPanel({ onShowMap }: { onShowMap?: () => void }) {
           )}
           {effectiveDurationMin(leg) != null && (
             <span className="rounded-full bg-ocean-wash px-2.5 py-0.5 text-xs font-medium text-ocean-deep">
+              {isDurationEstimate(leg) && "約 "}
               {effectiveDurationMin(leg)! >= 60
                 ? `${Math.floor(effectiveDurationMin(leg)! / 60)} 時 ${effectiveDurationMin(leg)! % 60} 分`
                 : `${effectiveDurationMin(leg)!} 分`}

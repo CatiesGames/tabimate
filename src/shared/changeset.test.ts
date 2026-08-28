@@ -264,3 +264,16 @@ describe("effectiveDurationMin(交通時長單一真相)", () => {
     expect(effectiveDurationMin({ durationMin: 7, departureTime: null, arrivalTime: null })).toBe(7);
   });
 });
+
+import { isDurationEstimate } from "./changeset";
+
+describe("isDurationEstimate", () => {
+  test("缺起訖且有 durationMin → 預估", () => {
+    expect(isDurationEstimate({ durationMin: 7, departureTime: null, arrivalTime: null })).toBe(true);
+    expect(isDurationEstimate({ durationMin: 7, departureTime: "17:00", arrivalTime: null })).toBe(true);
+  });
+  test("起訖齊全 → 非預估;無時長 → 非預估", () => {
+    expect(isDurationEstimate({ durationMin: 7, departureTime: "17:00", arrivalTime: "17:10" })).toBe(false);
+    expect(isDurationEstimate({ durationMin: null, departureTime: null, arrivalTime: null })).toBe(false);
+  });
+});

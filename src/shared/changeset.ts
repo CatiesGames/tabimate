@@ -172,6 +172,15 @@ export function effectiveDurationMin(leg: {
   return leg.durationMin;
 }
 
+/** 顯示的時長是否為預估:缺起訖、沿用手填/塔比查的 durationMin(UI 加「約」)。 */
+export function isDurationEstimate(leg: {
+  durationMin: number | null;
+  departureTime: string | null;
+  arrivalTime: string | null;
+}): boolean {
+  return !(leg.departureTime && leg.arrivalTime) && leg.durationMin != null;
+}
+
 /** 驗證並正規化住宿頭尾交通段(存在 day 上)。 */
 function normalizeCarryLeg(leg: CarryLeg | null, i: number): CarryLeg | null {
   if (leg == null) return null;
