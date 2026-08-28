@@ -216,9 +216,19 @@ describe("lodgingFarFromDay(住宿視野逐日自動判定)", () => {
     const stops = [mk("a", "d1", 34.99, 135.76), mk("b", "d1", 35.0, 135.77)]; // 京都
     expect(lodgingFarFromDay(hotel, stops, "d1")).toBe(true);
   });
-  test("活動區自身跨度大時門檻放寬(對角線 1.5 倍)", () => {
-    const stops = [mk("a", "d1", 35.5, 139.5), mk("b", "d1", 35.9, 140.0)]; // 對角 ~60km
-    const nearishHotel = mk("h2", "d0", 35.2, 139.3, { category: "lodging" }); // 離中心 ~55km < 90km
+  test("實案:當天行程跨浅草+上野,住宿在築地(邊界外約 5km)→ 排除", () => {
+    const stops = [
+      mk("a", "d1", 35.711, 139.796), // 浅草
+      mk("b", "d1", 35.7148, 139.7967),
+      mk("c", "d1", 35.7156, 139.7745), // 上野
+      mk("d", "d1", 35.710, 139.810), // スカイツリー方向
+    ];
+    const tsukiji = mk("h2", "d0", 35.665, 139.770, { category: "lodging" });
+    expect(lodgingFarFromDay(tsukiji, stops, "d1")).toBe(true);
+  });
+  test("活動區跨度大時按比例放寬:離邊界 8km < 對角線一半 → 納入", () => {
+    const stops = [mk("a", "d1", 35.55, 139.5), mk("b", "d1", 35.72, 139.65)]; // 對角 ~23km
+    const nearishHotel = mk("h3", "d0", 35.48, 139.48, { category: "lodging" }); // 離邊界 ~8km
     expect(lodgingFarFromDay(nearishHotel, stops, "d1")).toBe(false);
   });
   test("當天沒有可定位行程 → 納入(false)", () => {

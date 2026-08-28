@@ -151,9 +151,11 @@ export function detectTimeConflicts(days: Day[], stops: Stop[]): Set<string> {
 }
 
 /**
- * 當天的住宿錨點是否離「當天主要活動區」很遠(如遠征另一座城市):
- * 是的話地圖視野自動不遷就住宿(標記照畫)。門檻=活動區對角線 1.5 倍,至少 5km,
- * 所以住宿在活動區附近(同城)一定納入、跨城遠征一定排除;每天各自判定。
+ * 當天的住宿錨點是否離「當天主要活動區」很遠(如遠征另一座城市、或住在活動群之外):
+ * 是的話地圖視野自動不遷就住宿(標記照畫)。
+ * 量的是住宿到活動區「邊界」的距離(不是中心,否則當天行程跨得廣時會過度容忍),
+ * 門檻 = max(3km, 活動區對角線的一半):住宿混在活動群裡=距離 0 一定納入,
+ * 明顯脫離活動群就排除;每天各自判定。
  */
 export function lodgingFarFromDay(
   lodging: Stop,
@@ -174,10 +176,12 @@ export function lodgingFarFromDay(
   const lngs = pts.map((s) => s.lng!);
   const minLat = Math.min(...lats), maxLat = Math.max(...lats);
   const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
-  const cLat = (minLat + maxLat) / 2, cLng = (minLng + maxLng) / 2;
   const kmPerLat = 111;
-  const kmPerLng = 111 * Math.cos((cLat * Math.PI) / 180);
+  const kmPerLng = 111 * Math.cos((((minLat + maxLat) / 2) * Math.PI) / 180);
   const diagKm = Math.hypot((maxLat - minLat) * kmPerLat, (maxLng - minLng) * kmPerLng);
-  const distKm = Math.hypot((lodging.lat - cLat) * kmPerLat, (lodging.lng - cLng) * kmPerLng);
-  return distKm > Math.max(1.5 * diagKm, 5);
+  // 住宿到活動區 bbox 的最短距離(在框內=0)
+  const dLat = Math.max(minLat - lodging.lat, 0, lodging.lat - maxLat);
+  const dLng = Math.max(minLng - lodging.lng, 0, lodging.lng - maxLng);
+  const edgeKm = Math.hypot(dLat * kmPerLat, dLng * kmPerLng);
+  return edgeKm > Math.max(3, 0.5 * diagKm);
 }
