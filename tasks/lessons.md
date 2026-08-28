@@ -1,0 +1,1 @@
+- When writing persona/system-prompt rules for 塔比, prefer natural guidance over imperative bans (e.g. 「你平常說繁體中文…自然地跟上對方的語言」 not 「所有輸出一律…唯一例外…」) — because the user wants the agent to feel natural and judge context, with 台灣用語 as the default rather than a hard rule.
