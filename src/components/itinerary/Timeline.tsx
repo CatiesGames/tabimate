@@ -12,6 +12,7 @@ import {
   primaryLodgingOf,
 } from "@/shared/conflicts";
 import type { CarryLeg, Day, Leg, Stop } from "@/shared/types";
+import { effectiveDurationMin } from "@/shared/changeset";
 import {
   type CarryEdge,
   carryLegSaveOp,
@@ -576,8 +577,8 @@ function LegSummary({ leg, muted }: { leg: Leg; muted?: boolean }) {
             </span>
           );
         })}
-        {leg.durationMin != null && (
-          <span className="tm-num shrink-0 font-medium">共 {leg.durationMin} 分</span>
+        {effectiveDurationMin(leg) != null && (
+          <span className="tm-num shrink-0 font-medium">共 {effectiveDurationMin(leg)} 分</span>
         )}
         {leg.transit?.fare && <span className="tm-num shrink-0">{leg.transit.fare}</span>}
       </>
@@ -602,7 +603,7 @@ function LegSummary({ leg, muted }: { leg: Leg; muted?: boolean }) {
           {leg.departureTime}→{leg.arrivalTime}
         </span>
       )}
-      {leg.durationMin != null && <span className="tm-num">{leg.durationMin} 分</span>}
+      {effectiveDurationMin(leg) != null && <span className="tm-num">{effectiveDurationMin(leg)} 分</span>}
       {leg.transit?.fare && <span className="tm-num">{leg.transit.fare}</span>}
       {leg.notes && <span className="max-w-28 truncate opacity-80">·{leg.notes}</span>}
     </>

@@ -250,3 +250,17 @@ describe("applyOperations", () => {
     );
   });
 });
+
+import { effectiveDurationMin } from "./changeset";
+
+describe("effectiveDurationMin(交通時長單一真相)", () => {
+  test("起訖齊全:以推導為準,忽略不一致的 durationMin", () => {
+    expect(effectiveDurationMin({ durationMin: 7, departureTime: "17:00", arrivalTime: "17:10" })).toBe(10);
+  });
+  test("跨午夜", () => {
+    expect(effectiveDurationMin({ durationMin: null, departureTime: "23:50", arrivalTime: "00:20" })).toBe(30);
+  });
+  test("缺起訖:沿用 durationMin", () => {
+    expect(effectiveDurationMin({ durationMin: 7, departureTime: null, arrivalTime: null })).toBe(7);
+  });
+});

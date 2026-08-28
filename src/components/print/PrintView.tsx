@@ -17,6 +17,7 @@ import {
   primaryLodgingOf,
 } from "@/shared/conflicts";
 import type { CarryLeg, Day, Itinerary, Leg, Stop } from "@/shared/types";
+import { effectiveDurationMin } from "@/shared/changeset";
 
 type Member = { id: string; name: string; color: string };
 
@@ -477,7 +478,7 @@ function LegRow({ leg }: { leg: Leg }) {
           {leg.departureTime}→{leg.arrivalTime}
         </span>
       )}
-      {leg.durationMin != null && <span className="tm-num">{leg.durationMin} 分</span>}
+      {effectiveDurationMin(leg) != null && <span className="tm-num">{effectiveDurationMin(leg)} 分</span>}
       {leg.transit?.fare && <span className="tm-num">{leg.transit.fare}</span>}
       {leg.notes && <span>·{leg.notes}</span>}
     </div>

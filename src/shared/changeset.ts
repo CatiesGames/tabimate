@@ -156,6 +156,22 @@ export class ChangesetError extends Error {
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+/** 交通時長的單一真相:起訖齊全時一律 = 訖 - 起(跨午夜 +24h),否則用 durationMin。
+ *  顯示與寫入都走這裡,避免「卡上 7 分、編輯器 10 分」這類不一致。 */
+export function effectiveDurationMin(leg: {
+  durationMin: number | null;
+  departureTime: string | null;
+  arrivalTime: string | null;
+}): number | null {
+  if (leg.departureTime && leg.arrivalTime) {
+    const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+    let d = toMin(leg.arrivalTime) - toMin(leg.departureTime);
+    if (d < 0) d += 24 * 60;
+    return d;
+  }
+  return leg.durationMin;
+}
+
 /** 驗證並正規化住宿頭尾交通段(存在 day 上)。 */
 function normalizeCarryLeg(leg: CarryLeg | null, i: number): CarryLeg | null {
   if (leg == null) return null;
@@ -164,7 +180,7 @@ function normalizeCarryLeg(leg: CarryLeg | null, i: number): CarryLeg | null {
   }
   checkTime(leg.departureTime ?? undefined, "departureTime", i);
   checkTime(leg.arrivalTime ?? undefined, "arrivalTime", i);
-  return {
+  const out: CarryLeg = {
     mode: leg.mode,
     durationMin:
       leg.durationMin != null && Number.isFinite(leg.durationMin)
@@ -175,6 +191,8 @@ function normalizeCarryLeg(leg: CarryLeg | null, i: number): CarryLeg | null {
     transit: leg.transit ?? null,
     notes: leg.notes ?? "",
   };
+  out.durationMin = effectiveDurationMin(out);
+  return out;
 }
 
 function clampPos(pos: number | undefined, len: number): number {
@@ -496,6 +514,7 @@ export function applyOperations(
           leg.bookingStatus = op.bookingStatus;
         }
         if ("booking" in op) leg.booking = op.booking ?? null;
+        leg.durationMin = effectiveDurationMin(leg); // 起訖齊全時時長以推導為準
         leg.needsReview = false; // 重新設定 = 已確認
         leg.updatedAt = meta.now;
         if (!existing) doc.legs.push(leg);
