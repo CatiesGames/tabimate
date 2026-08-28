@@ -52,16 +52,32 @@ export function registerCoreTools() {
   registerTool({
     name: "get_itinerary",
     description:
-      "取得整份行程(days/stops/legs 完整 JSON 與所有 id)與目前版本號 itineraryRev。任何修改前先呼叫這個拿最新狀態。回傳另含 issues:timeConflictStopIds(時間與前後順序衝突的地點,畫面上會對成員顯示警示)與 legsNeedingReview(相鄰地點被移動/改時間後需重新確認的交通段)— 發現這些問題時主動處理:能自行判斷就直接提案修正,需要成員拍板就用 present_choices。",
+      "取得整份行程(days/stops/legs 完整 JSON 與所有 id)與目前版本號 itineraryRev。任何修改前先呼叫這個拿最新狀態。回傳已為你精簡:每個地點的 place.photoRefs 只帶第一條(在聊天分享照片用 ![說明](gphoto:<ref>) 即可)、交通不含地圖 polyline — 這不影響任何規劃與修改操作。回傳另含 issues:timeConflictStopIds(時間與前後順序衝突的地點,畫面上會對成員顯示警示)與 legsNeedingReview(相鄰地點被移動/改時間後需重新確認的交通段)— 發現這些問題時主動處理:能自行判斷就直接提案修正,需要成員拍板就用 present_choices。",
     schema: z.object({}),
     handler: (_args, job) => {
       const { row, doc } = loadDoc(job.tripId);
+      // 瘦身:photoRefs 每條近 500 字元、一地點可存多條,佔整包近八成;
+      // polyline 同理。塔比只在分享照片時需要一條 ref,其餘是純浪費 context。
+      const slimStops = doc.stops.map((s) =>
+        s.place
+          ? {
+              ...s,
+              place: {
+                ...s.place,
+                photoRefs: s.place.photoRefs?.slice(0, 1),
+              },
+            }
+          : s,
+      );
+      const slimLegs = doc.legs.map((l) =>
+        l.transit?.polyline ? { ...l, transit: { ...l.transit, polyline: undefined } } : l,
+      );
       return {
         itineraryRev: row.itinerary_rev,
         trip: doc.trip,
         days: doc.days,
-        stops: doc.stops,
-        legs: doc.legs,
+        stops: slimStops,
+        legs: slimLegs,
         issues: {
           timeConflictStopIds: [...detectTimeConflicts(doc.days, doc.stops)],
           legsNeedingReview: doc.legs
