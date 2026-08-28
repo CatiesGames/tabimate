@@ -118,10 +118,14 @@ export function registerGoogleRoutes() {
       !carry && ownLodging && dayStops[dayStops.length - 1]?.id !== ownLodging.id
         ? ownLodging
         : null;
+    // 住宿設了「不納入視野」時,主要區域圖(scope=main)一致排除(全程圖照畫)
+    const lodgingStop =
+      carry?.stop ?? (midday ? midday : null);
+    const lodgingExcluded = scope === "main" && !!lodgingStop?.excludeFromFit;
     const lodging =
-      carry && carry.stop.lat != null && carry.stop.lng != null
+      !lodgingExcluded && carry && carry.stop.lat != null && carry.stop.lng != null
         ? { lat: carry.stop.lat, lng: carry.stop.lng, returnAtNight: !carry.isCheckoutDay }
-        : midday && midday.lat != null && midday.lng != null
+        : !lodgingExcluded && midday && midday.lat != null && midday.lng != null
           ? { lat: midday.lat, lng: midday.lng, returnAtNight: true, skipMarker: true }
           : undefined;
     const { path, cache, etag } = await guard(() => staticMap(pts, lodging));
