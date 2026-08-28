@@ -10,7 +10,12 @@ import { apiFetch, ApiError } from "@/lib/api";
 import { CATEGORY_META, LEG_MODE_ICON, LEG_MODE_LABEL } from "@/lib/categories";
 import { cn } from "@/lib/cn";
 import { dayDateLabel } from "@/lib/dates";
-import { carryOverLodging, isOvernightLodging, primaryLodgingOf } from "@/shared/conflicts";
+import {
+  carryOverLodging,
+  isOvernightLodging,
+  lodgingFarFromDay,
+  primaryLodgingOf,
+} from "@/shared/conflicts";
 import type { CarryLeg, Day, Itinerary, Leg, Stop } from "@/shared/types";
 
 type Member = { id: string; name: string; color: string };
@@ -179,7 +184,21 @@ export function PrintView({ tripId }: { tripId: string }) {
             {googleReady &&
               stops.some((st) => st.lat != null && st.lng != null) &&
               (() => {
-                const hasFar = stops.some((st) => st.excludeFromFit && st.lat != null);
+                // 出兩張圖的條件:當天有手動排除的遠點,或住宿錨點被排除
+                // (手動硬排除,或「離當天活動區很遠」的逐日自動判定,與伺服器 main 圖一致)
+                const mapLodging =
+                  carryOverLodging(days, doc.stops, day.id)?.stop ??
+                  (() => {
+                    const p = primaryLodgingOf(days, doc.stops, day.id);
+                    return p && stops[stops.length - 1]?.id !== p.id ? p : null;
+                  })();
+                const lodgingFar =
+                  !!mapLodging &&
+                  mapLodging.lat != null &&
+                  (mapLodging.excludeFromFit ||
+                    lodgingFarFromDay(mapLodging, doc.stops, day.id));
+                const hasFar =
+                  stops.some((st) => st.excludeFromFit && st.lat != null) || lodgingFar;
                 const mapImg = (scope: "all" | "main", label: string | null) => (
                   <div key={scope} className="mb-2">
                     {label && (
