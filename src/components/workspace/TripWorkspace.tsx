@@ -124,6 +124,10 @@ export function TripWorkspace() {
   useEffect(() => {
     if (mobileTab === "map") window.dispatchEvent(new Event("tm-locate"));
   }, [mobileTab]);
+  // 手機/平板切到塔比分頁:聊天從 display:none 變可見,通知訊息列表補捲到底
+  useEffect(() => {
+    if (mobileTab === "chat") window.dispatchEvent(new Event("tm-chat-shown"));
+  }, [mobileTab]);
   // 聊天 @ 提及 / 稽核卡點擊 → 跳回行程頁定位該項目(手機)
   useEffect(() => {
     const fn = () => setMobileTab("timeline");

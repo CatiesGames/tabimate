@@ -220,6 +220,19 @@ function MessageList({ messages }: { messages: ChatMessage[] }) {
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: smooth ? "smooth" : "auto" });
   }, []);
 
+  // 聊天面板從隱藏變可見(手機/平板切到塔比分頁):display:none 期間
+  // 自動捲動無效,顯示後補捲到底(前提是仍在貼底跟隨狀態)
+  const stickRef = useRef(true);
+  stickRef.current = stickBottom;
+  useEffect(() => {
+    const fn = () =>
+      requestAnimationFrame(() => {
+        if (stickRef.current) scrollToBottom();
+      });
+    window.addEventListener("tm-chat-shown", fn);
+    return () => window.removeEventListener("tm-chat-shown", fn);
+  }, [scrollToBottom]);
+
   // 貼底時新內容自動捲;上滑閱讀時不打擾
   useEffect(() => {
     if (stickBottom) {
@@ -231,13 +244,22 @@ function MessageList({ messages }: { messages: ChatMessage[] }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length, store.streamVersion(), store.liveText.length]);
 
+  // 使用者只要有「向上」動作就立刻解除貼底跟隨:
+  // 用 scrollTop 下降偵測(自動捲動只會增加),避免串流中每次自動捲又把人抓回底部
+  const lastTopRef = useRef(0);
   const onScroll = () => {
     const el = listRef.current;
     if (!el) return;
     maybeLoadOlder();
+    const prevTop = lastTopRef.current;
+    lastTopRef.current = el.scrollTop;
     const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
-    setStickBottom(nearBottom);
-    if (nearBottom) setUnseen(0);
+    if (el.scrollTop < prevTop - 1) {
+      setStickBottom(false);
+    } else {
+      setStickBottom(nearBottom);
+    }
+    if (nearBottom && el.scrollTop >= prevTop) setUnseen(0);
     // 浮動日期:找視窗頂端第一則可見訊息的日期,停止捲動 1.2s 後淡出
     const top = el.getBoundingClientRect().top;
     for (const node of el.querySelectorAll("[data-msg-ts]")) {
@@ -256,6 +278,9 @@ function MessageList({ messages }: { messages: ChatMessage[] }) {
       <div
         ref={listRef}
         onScroll={onScroll}
+        onWheel={(e) => {
+          if (e.deltaY < 0) setStickBottom(false);
+        }}
         className="tm-scroll flex h-full flex-col gap-3 overflow-x-hidden overflow-y-auto px-3 py-3"
       >
         {loadingOlder && (
