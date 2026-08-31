@@ -244,9 +244,11 @@ function MessageList({ messages }: { messages: ChatMessage[] }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length, store.streamVersion(), store.liveText.length]);
 
-  // 使用者只要有「向上」動作就立刻解除貼底跟隨:
-  // 用 scrollTop 下降偵測(自動捲動只會增加),避免串流中每次自動捲又把人抓回底部
+  // 使用者「向上」動作立即解除貼底跟隨;但 scrollTop 下降不等於上滑 —
+  // 串流訊息定稿/圖片載入會讓內容變矮,瀏覽器把 scrollTop 夾回上限也是下降。
+  // 所以下降只在「滾輪向上(onWheel)或觸控拖曳中/剛放手」時視為使用者意圖。
   const lastTopRef = useRef(0);
+  const touchRef = useRef(0); // 觸控中=Infinity;放手後留 1.2s 慣性寬限
   const onScroll = () => {
     const el = listRef.current;
     if (!el) return;
@@ -254,12 +256,13 @@ function MessageList({ messages }: { messages: ChatMessage[] }) {
     const prevTop = lastTopRef.current;
     lastTopRef.current = el.scrollTop;
     const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
-    if (el.scrollTop < prevTop - 1) {
+    const userUp = el.scrollTop < prevTop - 1 && Date.now() < touchRef.current;
+    if (userUp) {
       setStickBottom(false);
     } else {
       setStickBottom(nearBottom);
     }
-    if (nearBottom && el.scrollTop >= prevTop) setUnseen(0);
+    if (nearBottom && !userUp) setUnseen(0);
     // 浮動日期:找視窗頂端第一則可見訊息的日期,停止捲動 1.2s 後淡出
     const top = el.getBoundingClientRect().top;
     for (const node of el.querySelectorAll("[data-msg-ts]")) {
@@ -280,6 +283,15 @@ function MessageList({ messages }: { messages: ChatMessage[] }) {
         onScroll={onScroll}
         onWheel={(e) => {
           if (e.deltaY < 0) setStickBottom(false);
+        }}
+        onTouchStart={() => {
+          touchRef.current = Infinity;
+        }}
+        onTouchEnd={() => {
+          touchRef.current = Date.now() + 1200;
+        }}
+        onTouchCancel={() => {
+          touchRef.current = Date.now() + 1200;
         }}
         className="tm-scroll flex h-full flex-col gap-3 overflow-x-hidden overflow-y-auto px-3 py-3"
       >
