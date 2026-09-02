@@ -154,8 +154,10 @@ export function detectTimeConflicts(days: Day[], stops: Stop[]): Set<string> {
  * 當天的住宿錨點是否離「當天主要活動區」很遠(如遠征另一座城市、或住在活動群之外):
  * 是的話地圖視野自動不遷就住宿(標記照畫)。
  * 量的是住宿到活動區「邊界」的距離(不是中心,否則當天行程跨得廣時會過度容忍),
- * 門檻 = max(3km, 活動區對角線的一半):住宿混在活動群裡=距離 0 一定納入,
+ * 門檻 = max(2km, 活動區對角線的一半):住宿混在活動群裡=距離 0 一定納入,
  * 明顯脫離活動群就排除;每天各自判定。
+ * 絕對門檻取 2km(不是 3km):活動區只有一兩公里時,3km 外的住宿仍會被放行,
+ * 視野被撐大兩倍以上、市區那串點全擠成一團(實案:神田-上野一圈+八丁堀住宿,離邊界 2.8km)。
  */
 export function lodgingFarFromDay(
   lodging: Stop,
@@ -183,5 +185,5 @@ export function lodgingFarFromDay(
   const dLat = Math.max(minLat - lodging.lat, 0, lodging.lat - maxLat);
   const dLng = Math.max(minLng - lodging.lng, 0, lodging.lng - maxLng);
   const edgeKm = Math.hypot(dLat * kmPerLat, dLng * kmPerLng);
-  return edgeKm > Math.max(3, 0.5 * diagKm);
+  return edgeKm > Math.max(2, 0.5 * diagKm);
 }

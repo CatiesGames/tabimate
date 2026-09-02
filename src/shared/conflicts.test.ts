@@ -226,6 +226,18 @@ describe("lodgingFarFromDay(住宿視野逐日自動判定)", () => {
     const tsukiji = mk("h2", "d0", 35.665, 139.770, { category: "lodging" });
     expect(lodgingFarFromDay(tsukiji, stops, "d1")).toBe(true);
   });
+  test("實案:當天集中在神田-上野一小圈,住宿在八丁堀(邊界外約 2.8km)→ 排除", () => {
+    const stops = [
+      mk("a", "d1", 35.7073, 139.7755),
+      mk("b", "d1", 35.7053, 139.7720),
+      mk("c", "d1", 35.7022, 139.7741),
+      mk("d", "d1", 35.6969, 139.7721),
+      mk("e", "d1", 35.6934, 139.7711), // 最南:神田
+      mk("f", "d1", 35.7010, 139.7682),
+    ]; // 對角約 1.7km
+    const hatchobori = mk("h4", "d0", 35.6684, 139.7733, { category: "lodging" });
+    expect(lodgingFarFromDay(hatchobori, stops, "d1")).toBe(true);
+  });
   test("活動區跨度大時按比例放寬:離邊界 8km < 對角線一半 → 納入", () => {
     const stops = [mk("a", "d1", 35.55, 139.5), mk("b", "d1", 35.72, 139.65)]; // 對角 ~23km
     const nearishHotel = mk("h3", "d0", 35.48, 139.48, { category: "lodging" }); // 離邊界 ~8km
